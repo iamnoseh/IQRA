@@ -1,0 +1,250 @@
+using Domain.Entities;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
+
+namespace Infrastructure.Data;
+
+public class ApplicationDbContext : IdentityDbContext<AppUser, IdentityRole<Guid>, Guid>
+{
+    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
+    {
+    }
+
+    public DbSet<UserProfile> UserProfiles { get; set; }
+    public DbSet<Subject> Subjects { get; set; }
+    public DbSet<Topic> Topics { get; set; }
+    public DbSet<Question> Questions { get; set; }
+    public DbSet<AnswerOption> AnswerOptions { get; set; }
+    public DbSet<TestSession> TestSessions { get; set; }
+    public DbSet<UserAnswer> UserAnswers { get; set; }
+    public DbSet<SubscriptionPlan> SubscriptionPlans { get; set; }
+    public DbSet<UserSubscription> UserSubscriptions { get; set; }
+    public DbSet<PaymentTransaction> PaymentTransactions { get; set; }
+    public DbSet<DuelMatch> DuelMatches { get; set; }
+    public DbSet<League> Leagues { get; set; }
+    public DbSet<TeamMember> TeamMembers { get; set; }
+    public DbSet<NewsItem> NewsItems { get; set; }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        ConfigureIdentityTables(modelBuilder);
+        ConfigureUserEntities(modelBuilder);
+        ConfigureEducationEntities(modelBuilder);
+        ConfigureTestingEntities(modelBuilder);
+        ConfigureMonetizationEntities(modelBuilder);
+        ConfigureGamificationEntities(modelBuilder);
+        ConfigureCmsEntities(modelBuilder);
+    }
+
+    private void ConfigureIdentityTables(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<AppUser>(entity =>
+        {
+            entity.ToTable("Users");
+            entity.HasIndex(u => u.PhoneNumber).IsUnique();
+            entity.Property(u => u.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.Property(u => u.IsActive).HasDefaultValue(true);
+        });
+
+        modelBuilder.Entity<IdentityRole<Guid>>().ToTable("Roles");
+        modelBuilder.Entity<IdentityUserRole<Guid>>().ToTable("UserRoles");
+        modelBuilder.Entity<IdentityUserClaim<Guid>>().ToTable("UserClaims");
+        modelBuilder.Entity<IdentityUserLogin<Guid>>().ToTable("UserLogins");
+        modelBuilder.Entity<IdentityUserToken<Guid>>().ToTable("UserTokens");
+        modelBuilder.Entity<IdentityRoleClaim<Guid>>().ToTable("RoleClaims");
+    }
+
+    private void ConfigureUserEntities(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<UserProfile>(entity =>
+        {
+            entity.HasKey(p => p.Id);
+            entity.HasOne(p => p.User)
+                .WithOne(u => u.Profile)
+                .HasForeignKey<UserProfile>(p => p.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.Property(p => p.XP).HasDefaultValue(0);
+            entity.HasIndex(p => p.UserId).IsUnique();
+        });
+    }
+
+    private void ConfigureEducationEntities(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<Subject>(entity =>
+        {
+            entity.HasKey(s => s.Id);
+            entity.Property(s => s.Name).IsRequired().HasMaxLength(100);
+        });
+
+        modelBuilder.Entity<Topic>(entity =>
+        {
+            entity.HasKey(t => t.Id);
+            entity.HasOne(t => t.Subject)
+                .WithMany(s => s.Topics)
+                .HasForeignKey(t => t.SubjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.Property(t => t.Name).IsRequired().HasMaxLength(200);
+        });
+
+        modelBuilder.Entity<Question>(entity =>
+        {
+            entity.HasKey(q => q.Id);
+            entity.HasOne(q => q.Subject)
+                .WithMany(s => s.Questions)
+                .HasForeignKey(q => q.SubjectId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(q => q.Topic)
+                .WithMany(t => t.Questions)
+                .HasForeignKey(q => q.TopicId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.Property(q => q.Content).IsRequired();
+            entity.Property(q => q.Explanation).IsRequired();
+        });
+
+        modelBuilder.Entity<AnswerOption>(entity =>
+        {
+            entity.HasKey(a => a.Id);
+            entity.HasOne(a => a.Question)
+                .WithMany(q => q.Answers)
+                .HasForeignKey(a => a.QuestionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.Property(a => a.Text).IsRequired();
+        });
+    }
+
+    private void ConfigureTestingEntities(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<TestSession>(entity =>
+        {
+            entity.HasKey(t => t.Id);
+            entity.HasOne(t => t.User)
+                .WithMany(u => u.TestSessions)
+                .HasForeignKey(t => t.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.Property(t => t.StartedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.Property(t => t.TotalScore).HasDefaultValue(0);
+        });
+
+        modelBuilder.Entity<UserAnswer>(entity =>
+        {
+            entity.HasKey(ua => ua.Id);
+            entity.HasOne(ua => ua.TestSession)
+                .WithMany(ts => ts.Answers)
+                .HasForeignKey(ua => ua.TestSessionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(ua => ua.Question)
+                .WithMany(q => q.UserAnswers)
+                .HasForeignKey(ua => ua.QuestionId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(ua => ua.ChosenAnswer)
+                .WithMany()
+                .HasForeignKey(ua => ua.ChosenAnswerId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.Property(ua => ua.TimeSpentSeconds).HasDefaultValue(0);
+        });
+    }
+
+    private void ConfigureMonetizationEntities(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<SubscriptionPlan>(entity =>
+        {
+            entity.HasKey(sp => sp.Id);
+            entity.Property(sp => sp.Name).IsRequired().HasMaxLength(50);
+            entity.Property(sp => sp.Price).HasPrecision(10, 2);
+        });
+
+        modelBuilder.Entity<UserSubscription>(entity =>
+        {
+            entity.HasKey(us => us.Id);
+            entity.HasOne(us => us.User)
+                .WithOne(u => u.Subscription)
+                .HasForeignKey<UserSubscription>(us => us.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(us => us.Plan)
+                .WithMany(p => p.Subscriptions)
+                .HasForeignKey(us => us.PlanId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(us => us.UserId).IsUnique();
+        });
+
+        modelBuilder.Entity<PaymentTransaction>(entity =>
+        {
+            entity.HasKey(pt => pt.Id);
+            entity.HasOne(pt => pt.User)
+                .WithMany(u => u.Payments)
+                .HasForeignKey(pt => pt.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.Property(pt => pt.Amount).HasPrecision(10, 2);
+            entity.Property(pt => pt.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.HasIndex(pt => pt.ExternalTransactionId);
+        });
+    }
+
+    private void ConfigureGamificationEntities(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<DuelMatch>(entity =>
+        {
+            entity.HasKey(dm => dm.Id);
+            
+            entity.HasOne(dm => dm.Player1)
+                .WithMany(u => u.DuelsAsPlayer1)
+                .HasForeignKey(dm => dm.Player1Id)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(dm => dm.Player2)
+                .WithMany(u => u.DuelsAsPlayer2)
+                .HasForeignKey(dm => dm.Player2Id)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(dm => dm.Winner)
+                .WithMany()
+                .HasForeignKey(dm => dm.WinnerId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.Property(dm => dm.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.Property(dm => dm.Player1Score).HasDefaultValue(0);
+            entity.Property(dm => dm.Player2Score).HasDefaultValue(0);
+        });
+
+        modelBuilder.Entity<League>(entity =>
+        {
+            entity.HasKey(l => l.Id);
+            entity.Property(l => l.Name).IsRequired().HasMaxLength(50);
+        });
+    }
+
+    private void ConfigureCmsEntities(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<TeamMember>(entity =>
+        {
+            entity.HasKey(tm => tm.Id);
+            entity.Property(tm => tm.FullName).IsRequired().HasMaxLength(100);
+            entity.Property(tm => tm.Role).IsRequired().HasMaxLength(100);
+            entity.Property(tm => tm.IsActive).HasDefaultValue(true);
+        });
+
+        modelBuilder.Entity<NewsItem>(entity =>
+        {
+            entity.HasKey(ni => ni.Id);
+            entity.Property(ni => ni.Title).IsRequired().HasMaxLength(200);
+            entity.Property(ni => ni.Body).IsRequired();
+            entity.Property(ni => ni.PublishedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.Property(ni => ni.IsPublished).HasDefaultValue(false);
+        });
+    }
+}
