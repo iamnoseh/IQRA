@@ -1,4 +1,4 @@
-namespace Domain.Entities;
+namespace Domain.Entities.Testing;
 
 public class UserAnswer
 {
@@ -13,6 +13,6 @@ public class UserAnswer
     public int TimeSpentSeconds { get; set; }
     
     public TestSession TestSession { get; set; } = null!;
-    public Question Question { get; set; } = null!;
-    public AnswerOption? ChosenAnswer { get; set; }
+    public Education.Question Question { get; set; } = null!;
+    public Education.AnswerOption? ChosenAnswer { get; set; }
 }

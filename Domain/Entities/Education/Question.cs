@@ -1,6 +1,6 @@
 using Domain.Enums;
 
-namespace Domain.Entities;
+namespace Domain.Entities.Education;
 
 public class Question
 {
@@ -19,5 +19,5 @@ public class Question
     public Subject Subject { get; set; } = null!;
     public Topic? Topic { get; set; }
     public ICollection<AnswerOption> Answers { get; set; } = new List<AnswerOption>();
-    public ICollection<UserAnswer> UserAnswers { get; set; } = new List<UserAnswer>();
+    public ICollection<Testing.UserAnswer> UserAnswers { get; set; } = new List<Testing.UserAnswer>();
 }

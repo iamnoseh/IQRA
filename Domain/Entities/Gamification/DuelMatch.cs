@@ -1,4 +1,4 @@
-namespace Domain.Entities;
+namespace Domain.Entities.Gamification;
 
 public class DuelMatch
 {
@@ -14,7 +14,7 @@ public class DuelMatch
     public int Player1Score { get; set; }
     public int Player2Score { get; set; }
     
-    public AppUser Player1 { get; set; } = null!;
-    public AppUser? Player2 { get; set; }
-    public AppUser? Winner { get; set; }
+    public Users.AppUser Player1 { get; set; } = null!;
+    public Users.AppUser? Player2 { get; set; }
+    public Users.AppUser? Winner { get; set; }
 }

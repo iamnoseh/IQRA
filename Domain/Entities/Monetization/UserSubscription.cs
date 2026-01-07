@@ -1,4 +1,4 @@
-namespace Domain.Entities;
+namespace Domain.Entities.Monetization;
 
 public class UserSubscription
 {
@@ -10,6 +10,6 @@ public class UserSubscription
     public DateTime EndDate { get; set; }
     public bool IsActive { get; set; }
     
-    public AppUser User { get; set; } = null!;
+    public Users.AppUser User { get; set; } = null!;
     public SubscriptionPlan Plan { get; set; } = null!;
 }

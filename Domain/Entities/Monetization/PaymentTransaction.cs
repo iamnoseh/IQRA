@@ -1,6 +1,6 @@
 using Domain.Enums;
 
-namespace Domain.Entities;
+namespace Domain.Entities.Monetization;
 
 public class PaymentTransaction
 {
@@ -16,5 +16,5 @@ public class PaymentTransaction
     
     public string? ExternalTransactionId { get; set; }
     
-    public AppUser User { get; set; } = null!;
+    public Users.AppUser User { get; set; } = null!;
 }

@@ -1,16 +1,18 @@
-using Domain.Entities;
+using Domain.Entities.Users;
+using Domain.Entities.Education;
+using Domain.Entities.Testing;
+using Domain.Entities.Monetization;
+using Domain.Entities.Gamification;
+using Domain.Entities.CMS;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Data;
 
-public class ApplicationDbContext : IdentityDbContext<AppUser, IdentityRole<Guid>, Guid>
+public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
+    : IdentityDbContext<AppUser, IdentityRole<Guid>, Guid>(options)
 {
-    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
-    {
-    }
-
     public DbSet<UserProfile> UserProfiles { get; set; }
     public DbSet<Subject> Subjects { get; set; }
     public DbSet<Topic> Topics { get; set; }

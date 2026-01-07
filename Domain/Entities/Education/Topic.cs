@@ -1,4 +1,4 @@
-namespace Domain.Entities;
+namespace Domain.Entities.Education;
 
 public class Topic
 {

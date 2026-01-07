@@ -1,4 +1,4 @@
-namespace Domain.Entities;
+namespace Domain.Entities.Gamification;
 
 public class League
 {

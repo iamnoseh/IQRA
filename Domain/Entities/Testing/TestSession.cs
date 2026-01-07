@@ -1,6 +1,6 @@
 using Domain.Enums;
 
-namespace Domain.Entities;
+namespace Domain.Entities.Testing;
 
 public class TestSession
 {
@@ -13,6 +13,6 @@ public class TestSession
     public int TotalScore { get; set; }
     public TestMode Mode { get; set; }
     
-    public AppUser User { get; set; } = null!;
+    public Users.AppUser User { get; set; } = null!;
     public ICollection<UserAnswer> Answers { get; set; } = new List<UserAnswer>();
 }
