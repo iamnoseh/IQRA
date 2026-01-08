@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Application.DTOs.Auth;
 
-public class SendSmsRequest
+public class SendPasswordRequest
 {
     [Required]
     [Phone]

@@ -9,6 +9,6 @@ public class LoginRequest
     public string PhoneNumber { get; set; } = string.Empty;
 
     [Required]
-    [StringLength(6, MinimumLength = 6)]
-    public string SmsCode { get; set; } = string.Empty;
+    [StringLength(100, MinimumLength = 7)]
+    public string Password { get; set; } = string.Empty;
 }
