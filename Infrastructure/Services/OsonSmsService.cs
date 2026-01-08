@@ -45,13 +45,25 @@ public class OsonSmsService(IConfiguration configuration) : IOsonSmsService
             request.AddParameter("str_hash", strHash);
             request.AddParameter("txn_id", txnId);
 
+            Console.WriteLine($"[OsonSms] Sending SMS to {phoneNumber}");
+            Console.WriteLine($"[OsonSms] URL: {_sendSmsUrl}");
+            Console.WriteLine($"[OsonSms] Login: {_login}, Sender: {_sender}");
+
             var response = await _restClient.ExecuteAsync<OsonSmsSendResponseDto>(request);
+
+            Console.WriteLine($"[OsonSms] Response StatusCode: {response.StatusCode}");
+            Console.WriteLine($"[OsonSms] Response Content: {response.Content}");
+            Console.WriteLine($"[OsonSms] Response ErrorMessage: {response.ErrorMessage}");
 
             if (response is { IsSuccessful: true, Data: not null })
             {
                 if (response.Data.Error != null)
+                {
+                    Console.WriteLine($"[OsonSms] API Error: {response.Data.Error.Message}");
                     return new Response<OsonSmsSendResponseDto>(HttpStatusCode.BadRequest, response.Data.Error.Message);
+                }
 
+                Console.WriteLine($"[OsonSms] Success! MsgId: {response.Data.MsgId}");
                 return new Response<OsonSmsSendResponseDto>(response.Data) { Message = Messages.OsonSms.SendSuccess };
             }
 
@@ -59,6 +71,8 @@ public class OsonSmsService(IConfiguration configuration) : IOsonSmsService
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"[OsonSms] Exception: {ex.Message}");
+            Console.WriteLine($"[OsonSms] StackTrace: {ex.StackTrace}");
             return new Response<OsonSmsSendResponseDto>(HttpStatusCode.InternalServerError, string.Format(Messages.OsonSms.Error, ex.Message));
         }
     }

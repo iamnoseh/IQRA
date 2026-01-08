@@ -61,12 +61,20 @@ public class AuthService(
     {
         try
         {
+            var normalizedPhone = PhoneNumberHelper.NormalizePhoneNumber(request.PhoneNumber);
+            
+            if (!PhoneNumberHelper.IsValidTajikPhoneNumber(normalizedPhone))
+            {
+                logger.LogWarning("Invalid phone number format: {PhoneNumber}", request.PhoneNumber);
+                return CreateErrorResponse("Рақами телефон нодуруст аст. Формат: +992XXXXXXXXX ё 9XXXXXXXX");
+            }
+
             var existingUser = await userManager.Users
-                .FirstOrDefaultAsync(u => u.UserName == request.PhoneNumber || u.PhoneNumber == request.PhoneNumber);
+                .FirstOrDefaultAsync(u => u.UserName == normalizedPhone || u.PhoneNumber == normalizedPhone);
 
             if (existingUser != null)
             {
-                logger.LogWarning("User with phone {PhoneNumber} already exists", request.PhoneNumber);
+                logger.LogWarning("User with phone {PhoneNumber} already exists", normalizedPhone);
                 return CreateErrorResponse("Корбар бо ин рақам аллакай вуҷуд дорад");
             }
 
@@ -74,8 +82,8 @@ public class AuthService(
             
             var user = new AppUser
             {
-                UserName = request.PhoneNumber,
-                PhoneNumber = request.PhoneNumber,
+                UserName = normalizedPhone,
+                PhoneNumber = normalizedPhone,
                 PhoneNumberConfirmed = true,
                 Role = UserRole.Student,
                 CreatedAt = DateTime.UtcNow,
@@ -104,8 +112,8 @@ public class AuthService(
             context.UserProfiles.Add(profile);
             await context.SaveChangesAsync();
 
-            var message = $"IQRA: Пароли шумо: {password}. Номи корбар: {user.UserName}";
-            await smsService.SendSmsAsync(request.PhoneNumber, message);
+            var message = $"Салом! Шумо дар IQRA ба қайд гирифта шудед.\n\n РАМЗ: {password}\n\nИН РАМЗРО МАХФӢ НИГОҲ ДОРЕД!\nБарои даромад рақами телефони худро истифода баред.\n\nIQRA.tj";
+            await smsService.SendSmsAsync(normalizedPhone, message);
 
             var token = jwtService.GenerateToken(user);
 
@@ -176,7 +184,7 @@ public class AuthService(
                 return Messages.Auth.OtpCreationError;
 
             if (string.IsNullOrWhiteSpace(user.PhoneNumber)) return Messages.Auth.OtpSent;
-            var smsMessage = $"IQRA\nРамзи тасдиқ: {otpCode}\nРамз танҳо 3 дақиқа эътибор дорад.";
+            var smsMessage = $"IQRA - Барқароркунии парол\n\nРАМЗИ ТАСДИҚ: {otpCode}\n\nМуҳлат: 3 дақиқа\nАгар шумо дархост накардед, ин паёмро рад кунед.\n\nIQRA.tj";
             await smsService.SendSmsAsync(user.PhoneNumber, smsMessage);
 
             return Messages.Auth.OtpSent;

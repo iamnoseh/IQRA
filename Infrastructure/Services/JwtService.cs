@@ -57,9 +57,10 @@ public class JwtService(IConfiguration configuration) : IJwtService
 
     private static List<Claim> BuildClaims(AppUser user) => new()
     {
-        new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-        new Claim(ClaimTypes.MobilePhone, user.PhoneNumber ?? string.Empty),
+        new Claim("Id", user.Id.ToString()),
+        new Claim("PhoneNumber", user.PhoneNumber ?? string.Empty),
         new Claim(ClaimTypes.Role, user.Role.ToString()),
+        new Claim("Role", user.Role.ToString()),
         new Claim("UserId", user.Id.ToString())
     };
 
