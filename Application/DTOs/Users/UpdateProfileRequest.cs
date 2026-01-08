@@ -13,11 +13,16 @@ public class UpdateProfileRequest
 
     public Gender? Gender { get; set; }
 
-    [StringLength(100)]
-    public string? SchoolName { get; set; }
+    [StringLength(50)]
+    public string? Province { get; set; }
 
     [StringLength(50)]
-    public string? City { get; set; }
+    public string? District { get; set; }
+
+    public int? SchoolId { get; set; }
+
+    [Range(1, 11)]
+    public int? Grade { get; set; }
 
     [Range(1, 5)]
     public int? ClusterId { get; set; }
@@ -28,6 +33,8 @@ public class UpdateProfileRequest
     [StringLength(100)]
     public string? TargetFaculty { get; set; }
 
-    [Range(100, 600)]
-    public int? TargetPassingScore { get; set; }
+    public int? TargetMajorId { get; set; }
+
+    [StringLength(500)]
+    public string? AvatarUrl { get; set; }
 }

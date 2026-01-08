@@ -12,6 +12,7 @@ public static class ServiceExtensions
         services.AddScoped<IJwtService, JwtService>();
         services.AddScoped<ISmsService, SmsService>();
         services.AddScoped<IOsonSmsService, OsonSmsService>();
+        services.AddScoped<IUserService, UserService>();
         
         return services;
     }
