@@ -1,3 +1,5 @@
+using Domain.Enums;
+
 namespace Domain.Entities.Users;
 
 public class UserProfile
@@ -7,13 +9,14 @@ public class UserProfile
     
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
-    public string SchoolName { get; set; } = string.Empty;
-    public string City { get; set; } = string.Empty;
+    public Gender? Gender { get; set; }
+    public string? SchoolName { get; set; }
+    public string? City { get; set; }
     
-    public int ClusterId { get; set; }
-    public string TargetUniversity { get; set; } = string.Empty;
-    public string TargetFaculty { get; set; } = string.Empty;
-    public int TargetPassingScore { get; set; }
+    public int? ClusterId { get; set; }
+    public string? TargetUniversity { get; set; }
+    public string? TargetFaculty { get; set; }
+    public int? TargetPassingScore { get; set; }
     
     public int XP { get; set; }
     public string? AvatarUrl { get; set; }

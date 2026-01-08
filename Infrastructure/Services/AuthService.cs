@@ -98,12 +98,6 @@ public class AuthService(
                 UserId = user.Id,
                 FirstName = request.FirstName,
                 LastName = request.LastName,
-                SchoolName = request.SchoolName,
-                City = request.City,
-                ClusterId = request.ClusterId,
-                TargetUniversity = request.TargetUniversity,
-                TargetFaculty = request.TargetFaculty ?? string.Empty,
-                TargetPassingScore = request.TargetPassingScore,
                 XP = 0
             };
 

@@ -547,33 +547,32 @@ namespace Infrastructure.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("City")
-                        .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int>("ClusterId")
+                    b.Property<int?>("ClusterId")
                         .HasColumnType("integer");
 
                     b.Property<string>("FirstName")
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<int?>("Gender")
+                        .HasColumnType("integer");
+
                     b.Property<string>("LastName")
                         .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("SchoolName")
-                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("TargetFaculty")
-                        .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int>("TargetPassingScore")
+                    b.Property<int?>("TargetPassingScore")
                         .HasColumnType("integer");
 
                     b.Property<string>("TargetUniversity")
-                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<Guid>("UserId")

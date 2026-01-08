@@ -10,20 +10,23 @@ builder.Services.AddCorsConfiguration();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddOpenApi();
+
+builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-app.MapOpenApi();
+app.UseSwagger();
 app.UseSwaggerUI(options =>
 {
-    options.SwaggerEndpoint("/openapi/v1.json", "IQRA API v1");
-    options.RoutePrefix = string.Empty;
+    options.SwaggerEndpoint("/swagger/v1/swagger.json", "IQRA API v1");
+    options.RoutePrefix = "swagger"; 
 });
 
 app.UseCors();
+
 app.UseAuthentication();
 app.UseAuthorization();
+
 app.MapControllers();
 
 app.Run();

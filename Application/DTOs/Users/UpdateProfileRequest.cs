@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Domain.Enums;
 
 namespace Application.DTOs.Users;
 
@@ -9,6 +10,8 @@ public class UpdateProfileRequest
 
     [StringLength(50, MinimumLength = 2)]
     public string? LastName { get; set; }
+
+    public Gender? Gender { get; set; }
 
     [StringLength(100)]
     public string? SchoolName { get; set; }
