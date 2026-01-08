@@ -4,6 +4,7 @@ using Domain.Entities.Testing;
 using Domain.Entities.Monetization;
 using Domain.Entities.Gamification;
 using Domain.Entities.CMS;
+using Domain.Entities.Reference;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -27,6 +28,11 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<League> Leagues { get; set; }
     public DbSet<TeamMember> TeamMembers { get; set; }
     public DbSet<NewsItem> NewsItems { get; set; }
+    public DbSet<School> Schools { get; set; }
+    public DbSet<University> Universities { get; set; }
+    public DbSet<Faculty> Faculties { get; set; }
+    public DbSet<Major> Majors { get; set; }
+    public DbSet<ClusterDefinition> ClusterDefinitions { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -39,6 +45,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         ConfigureMonetizationEntities(modelBuilder);
         ConfigureGamificationEntities(modelBuilder);
         ConfigureCmsEntities(modelBuilder);
+        ConfigureReferenceEntities(modelBuilder);
     }
 
     private void ConfigureIdentityTables(ModelBuilder modelBuilder)
@@ -247,6 +254,56 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.Property(ni => ni.Body).IsRequired();
             entity.Property(ni => ni.PublishedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.Property(ni => ni.IsPublished).HasDefaultValue(false);
+        });
+    }
+
+    private void ConfigureReferenceEntities(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<School>(entity =>
+        {
+            entity.HasKey(s => s.Id);
+            entity.Property(s => s.Name).IsRequired().HasMaxLength(200);
+            entity.Property(s => s.Province).IsRequired().HasMaxLength(50);
+            entity.Property(s => s.District).IsRequired().HasMaxLength(50);
+        });
+
+        modelBuilder.Entity<University>(entity =>
+        {
+            entity.HasKey(u => u.Id);
+            entity.Property(u => u.Name).IsRequired().HasMaxLength(200);
+            entity.Property(u => u.City).IsRequired().HasMaxLength(50);
+        });
+
+        modelBuilder.Entity<Faculty>(entity =>
+        {
+            entity.HasKey(f => f.Id);
+            entity.HasOne(f => f.University)
+                .WithMany(u => u.Faculties)
+                .HasForeignKey(f => f.UniversityId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.Property(f => f.Name).IsRequired().HasMaxLength(200);
+        });
+
+        modelBuilder.Entity<Major>(entity =>
+        {
+            entity.HasKey(m => m.Id);
+            entity.HasOne(m => m.Faculty)
+                .WithMany(f => f.Majors)
+                .HasForeignKey(m => m.FacultyId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.Property(m => m.Name).IsRequired().HasMaxLength(200);
+            entity.Property(m => m.MinScore2024).IsRequired();
+            entity.Property(m => m.MinScore2025).IsRequired();
+        });
+
+        modelBuilder.Entity<ClusterDefinition>(entity =>
+        {
+            entity.HasKey(cd => cd.Id);
+            entity.Property(cd => cd.ClusterNumber).IsRequired();
+            entity.Property(cd => cd.Description).HasMaxLength(500);
+            entity.Property(cd => cd.SubjectIdsJson).IsRequired();
         });
     }
 }

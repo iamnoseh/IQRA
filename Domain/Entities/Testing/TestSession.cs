@@ -13,6 +13,12 @@ public class TestSession
     public int TotalScore { get; set; }
     public TestMode Mode { get; set; }
     
+    public int? SubjectId { get; set; }
+    public string QuestionIdsJson { get; set; } = string.Empty;
+    public bool IsCompleted { get; set; }
+    public int ClusterNumber { get; set; }
+    
     public Users.AppUser User { get; set; } = null!;
+    public Education.Subject? Subject { get; set; }
     public ICollection<UserAnswer> Answers { get; set; } = new List<UserAnswer>();
 }
