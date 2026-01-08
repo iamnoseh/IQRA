@@ -1,4 +1,6 @@
+using Domain.Entities.Users;
 using Infrastructure.Data;
+using Microsoft.AspNetCore.Identity;
 using WebApp.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -19,7 +21,8 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    await SeedData.SeedAsync(context);
+    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
+    await SeedData.SeedAsync(context, userManager);
 }
 
 app.UseSwagger();

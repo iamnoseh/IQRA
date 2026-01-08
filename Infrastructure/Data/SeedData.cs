@@ -1,11 +1,14 @@
 using Domain.Entities.Reference;
+using Domain.Entities.Users;
+using Domain.Enums;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Data;
 
 public static class SeedData
 {
-    public static async Task SeedAsync(ApplicationDbContext context)
+    public static async Task SeedAsync(ApplicationDbContext context, UserManager<AppUser> userManager)
     {
         if (!await context.ClusterDefinitions.AnyAsync())
             await SeedClusters(context);
@@ -15,6 +18,34 @@ public static class SeedData
 
         if (!await context.Schools.AnyAsync())
             await SeedSchools(context);
+
+        await SeedAdminAsync(userManager);
+    }
+
+    private static async Task SeedAdminAsync(UserManager<AppUser> userManager)
+    {
+        var adminUsername = "admin";
+        var adminPassword = "Admin@123";
+
+        var existingAdmin = await userManager.FindByNameAsync(adminUsername);
+        if (existingAdmin != null)
+        {
+            return;
+        }
+
+        var admin = new AppUser
+        {
+            UserName = adminUsername,
+            PhoneNumber = "+992000000000",
+            PhoneNumberConfirmed = true,
+            Role = UserRole.Admin,
+            CreatedAt = DateTime.UtcNow,
+            IsActive = true
+        };
+
+        var result = await userManager.CreateAsync(admin, adminPassword);
+
+       
     }
 
     private static async Task SeedClusters(ApplicationDbContext context)
