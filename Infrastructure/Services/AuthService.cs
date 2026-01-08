@@ -1,9 +1,12 @@
+using System.Security.Claims;
+using Application.Constants;
 using Application.DTOs.Auth;
 using Application.Interfaces;
 using Domain.Entities.Users;
 using Domain.Enums;
 using Infrastructure.Data;
 using Infrastructure.Helpers;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -15,27 +18,42 @@ public class AuthService(
     ApplicationDbContext context,
     IJwtService jwtService,
     ISmsService smsService,
+    IHttpContextAccessor httpContextAccessor,
     ILogger<AuthService> logger) : IAuthService
 {
-    private const int PasswordExpirationMinutes = 10;
-    private const int TokenExpirationMinutes = 60;
+    private const int OtpExpirationMinutes = 3;
+    private const int ResetTokenExpirationMinutes = 10;
 
-    public async Task<AuthResponse> SendPasswordAsync(SendPasswordRequest request)
+    public async Task<AuthResponse> LoginAsync(LoginDto loginDto)
     {
         try
         {
-            var password = PasswordGenerator.Generate();
-            var user = await userManager.Users.FirstOrDefaultAsync(u => u.PhoneNumber == request.PhoneNumber);
-
+            var user = await userManager.FindByNameAsync(loginDto.Username);
             if (user == null)
-                return await HandleNewUserPasswordRequest(request.PhoneNumber, password);
+                return CreateErrorResponse(Messages.Auth.InvalidCredentials);
 
-            return await HandleExistingUserPasswordReset(user, password);
+            var isPasswordValid = await userManager.CheckPasswordAsync(user, loginDto.Password);
+            if (!isPasswordValid)
+                return CreateErrorResponse(Messages.Auth.InvalidCredentials);
+
+            var token = jwtService.GenerateToken(user);
+            
+            logger.LogInformation("User {Username} logged in successfully", loginDto.Username);
+            
+            return new AuthResponse
+            {
+                Token = token,
+                ExpiresAt = DateTime.UtcNow.AddMinutes(60),
+                UserId = user.Id,
+                PhoneNumber = user.PhoneNumber ?? string.Empty,
+                Role = user.Role.ToString(),
+                IsNewUser = false
+            };
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error in SendPasswordAsync for {PhoneNumber}", request.PhoneNumber);
-            return CreateErrorResponse(request.PhoneNumber);
+            logger.LogError(ex, "Error in LoginAsync for {Username}", loginDto.Username);
+            return CreateErrorResponse(Messages.Auth.InvalidCredentials);
         }
     }
 
@@ -44,161 +62,232 @@ public class AuthService(
         try
         {
             var existingUser = await userManager.Users
-                .FirstOrDefaultAsync(u => u.PhoneNumber == request.PhoneNumber);
+                .FirstOrDefaultAsync(u => u.UserName == request.PhoneNumber || u.PhoneNumber == request.PhoneNumber);
 
             if (existingUser != null)
             {
                 logger.LogWarning("User with phone {PhoneNumber} already exists", request.PhoneNumber);
-                return CreateErrorResponse(request.PhoneNumber);
+                return CreateErrorResponse("Корбар бо ин рақам аллакай вуҷуд дорад");
             }
 
-            var user = CreateNewUser(request.PhoneNumber);
-            var result = await userManager.CreateAsync(user, request.Password);
+            var password = PasswordGenerator.Generate();
+            
+            var user = new AppUser
+            {
+                UserName = request.PhoneNumber,
+                PhoneNumber = request.PhoneNumber,
+                PhoneNumberConfirmed = true,
+                Role = UserRole.Student,
+                CreatedAt = DateTime.UtcNow,
+                IsActive = true
+            };
+
+            var result = await userManager.CreateAsync(user, password);
 
             if (!result.Succeeded)
             {
                 logger.LogError("Failed to create user {PhoneNumber}: {Errors}",
                     request.PhoneNumber,
-                    string.Join(", ", result.Errors.Select(e => e.Description)));
-                return CreateErrorResponse(request.PhoneNumber);
+                    IdentityHelper.FormatIdentityErrors(result));
+                return CreateErrorResponse("Хатогӣ ҳангоми бақайдгирӣ");
             }
 
-            await CreateUserProfile(user.Id, request);
+            var profile = new UserProfile
+            {
+                Id = Guid.NewGuid(),
+                UserId = user.Id,
+                FirstName = request.FirstName,
+                LastName = request.LastName,
+                SchoolName = request.SchoolName,
+                City = request.City,
+                ClusterId = request.ClusterId,
+                TargetUniversity = request.TargetUniversity,
+                TargetFaculty = request.TargetFaculty ?? string.Empty,
+                TargetPassingScore = request.TargetPassingScore,
+                XP = 0
+            };
+
+            context.UserProfiles.Add(profile);
+            await context.SaveChangesAsync();
+
+            var message = $"IQRA: Пароли шумо: {password}. Номи корбар: {user.UserName}";
+            await smsService.SendSmsAsync(request.PhoneNumber, message);
+
             var token = jwtService.GenerateToken(user);
 
             logger.LogInformation("User {PhoneNumber} registered successfully", request.PhoneNumber);
 
-            return CreateSuccessResponse(user, token, true);
+            return new AuthResponse
+            {
+                Token = token,
+                ExpiresAt = DateTime.UtcNow.AddMinutes(60),
+                UserId = user.Id,
+                PhoneNumber = user.PhoneNumber,
+                Role = user.Role.ToString(),
+                IsNewUser = true
+            };
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error in RegisterAsync for {PhoneNumber}", request.PhoneNumber);
-            return CreateErrorResponse(request.PhoneNumber);
+            return CreateErrorResponse("Хатогӣ ҳангоми бақайдгирӣ");
         }
     }
 
-    public async Task<AuthResponse> LoginAsync(LoginRequest request)
+    public async Task<string> ChangePasswordAsync(ChangePasswordDto changePasswordDto)
     {
         try
         {
-            var user = await userManager.Users
-                .FirstOrDefaultAsync(u => u.PhoneNumber == request.PhoneNumber);
+            var userIdClaim = httpContextAccessor.HttpContext?.User.FindFirst("UserId")?.Value
+                              ?? httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
+            if (string.IsNullOrWhiteSpace(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+                return Messages.Auth.UserNotAuthenticated;
+
+            var user = await userManager.Users.FirstOrDefaultAsync(x => x.Id == userId);
             if (user == null)
-            {
-                logger.LogWarning("Login attempt for non-existent user {PhoneNumber}", request.PhoneNumber);
-                return CreateErrorResponse(request.PhoneNumber);
-            }
+                return Messages.Auth.UserNotFound;
 
-            var passwordValid = await userManager.CheckPasswordAsync(user, request.Password);
+            var changeResult = await userManager.ChangePasswordAsync(user, changePasswordDto.OldPassword, changePasswordDto.Password);
+            if (!changeResult.Succeeded)
+                return IdentityHelper.FormatIdentityErrors(changeResult);
 
-            if (!passwordValid)
-            {
-                logger.LogWarning("Invalid password for user {PhoneNumber}", request.PhoneNumber);
-                return CreateErrorResponse(request.PhoneNumber);
-            }
-
-            var token = jwtService.GenerateToken(user);
-
-            logger.LogInformation("User {PhoneNumber} logged in successfully", request.PhoneNumber);
-
-            return CreateSuccessResponse(user, token, false);
+            return Messages.Auth.PasswordChanged;
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error in LoginAsync for {PhoneNumber}", request.PhoneNumber);
-            return CreateErrorResponse(request.PhoneNumber);
+            logger.LogError(ex, "Error in ChangePasswordAsync");
+            return string.Format(Messages.Auth.PasswordChangeError, ex.Message);
         }
     }
 
-    private async Task<AuthResponse> HandleNewUserPasswordRequest(string phoneNumber, string password)
+    public async Task<string> SendOtpAsync(SendOtpDto sendOtpDto)
     {
-        var message = $"Раками шабакаи IQRA: Пароли шумо барои бақайдгирӣ: {password}";
-        var smsSent = await smsService.SendSmsAsync(phoneNumber, message);
-
-        if (!smsSent)
+        try
         {
-            logger.LogError("Failed to send password SMS to {PhoneNumber}", phoneNumber);
-            return CreatePasswordResponse(phoneNumber, string.Empty, true);
+            if (string.IsNullOrWhiteSpace(sendOtpDto.Username))
+                return Messages.Auth.UsernameRequired;
+
+            var user = await userManager.FindByNameAsync(sendOtpDto.Username);
+            if (user == null)
+                return Messages.Auth.UserNotFoundByUsername;
+
+            var otpCode = new Random().Next(1000, 9999).ToString();
+
+            user.Code = otpCode;
+            user.CodeDate = DateTime.UtcNow;
+
+            var result = await context.SaveChangesAsync();
+            if (result <= 0)
+                return Messages.Auth.OtpCreationError;
+
+            if (string.IsNullOrWhiteSpace(user.PhoneNumber)) return Messages.Auth.OtpSent;
+            var smsMessage = $"IQRA\nРамзи тасдиқ: {otpCode}\nРамз танҳо 3 дақиқа эътибор дорад.";
+            await smsService.SendSmsAsync(user.PhoneNumber, smsMessage);
+
+            return Messages.Auth.OtpSent;
         }
-
-        return CreatePasswordResponse(phoneNumber, password, true);
-    }
-
-    private async Task<AuthResponse> HandleExistingUserPasswordReset(AppUser user, string password)
-    {
-        var resetToken = await userManager.GeneratePasswordResetTokenAsync(user);
-        var result = await userManager.ResetPasswordAsync(user, resetToken, password);
-
-        if (!result.Succeeded)
+        catch (Exception ex)
         {
-            logger.LogError("Failed to reset password for user {PhoneNumber}", user.PhoneNumber);
-            return CreatePasswordResponse(user.PhoneNumber, string.Empty, false);
+            logger.LogError(ex, "Error in SendOtpAsync for {Username}", sendOtpDto.Username);
+            return string.Format(Messages.Auth.OtpSendError, ex.Message);
         }
-
-        var message = $"Раками шабакаи IQRA: Пароли нави шумо: {password}";
-        await smsService.SendSmsAsync(user.PhoneNumber, message);
-
-        return CreatePasswordResponse(user.PhoneNumber, password, false);
     }
 
-    private static AppUser CreateNewUser(string phoneNumber) => new()
+    public async Task<VerifyOtpResponseDto> VerifyOtpAsync(VerifyOtpDto verifyOtpDto)
     {
-        UserName = phoneNumber,
-        PhoneNumber = phoneNumber,
-        PhoneNumberConfirmed = true,
-        Role = UserRole.Student,
-        CreatedAt = DateTime.UtcNow,
-        IsActive = true
-    };
-
-    private async Task CreateUserProfile(Guid userId, RegisterRequest request)
-    {
-        var profile = new UserProfile
+        try
         {
-            Id = Guid.NewGuid(),
-            UserId = userId,
-            FirstName = request.FirstName,
-            LastName = request.LastName,
-            SchoolName = request.SchoolName,
-            City = request.City,
-            ClusterId = request.ClusterId,
-            TargetUniversity = request.TargetUniversity,
-            TargetFaculty = request.TargetFaculty ?? string.Empty,
-            TargetPassingScore = request.TargetPassingScore,
-            XP = 0
-        };
+            if (string.IsNullOrWhiteSpace(verifyOtpDto.Username) || string.IsNullOrWhiteSpace(verifyOtpDto.OtpCode))
+                return new VerifyOtpResponseDto { Message = Messages.Auth.UsernameAndOtpRequired };
 
-        context.UserProfiles.Add(profile);
-        await context.SaveChangesAsync();
+            var user = await userManager.FindByNameAsync(verifyOtpDto.Username);
+            if (user == null)
+                return new VerifyOtpResponseDto { Message = Messages.Auth.UserNotFoundByUsername };
+
+            if (user.Code != verifyOtpDto.OtpCode)
+                return new VerifyOtpResponseDto { Message = Messages.Auth.OtpInvalid };
+
+            if (user.CodeDate == null)
+                return new VerifyOtpResponseDto { Message = Messages.Auth.OtpInvalid };
+
+            var timeElapsed = DateTime.UtcNow - user.CodeDate.Value;
+            if (timeElapsed.TotalMinutes > OtpExpirationMinutes)
+                return new VerifyOtpResponseDto { Message = Messages.Auth.OtpExpired };
+
+            var resetToken = Convert.ToBase64String(Guid.NewGuid().ToByteArray()) + "_" + user.Id;
+            user.Code = $"VERIFIED_{resetToken}";
+            user.CodeDate = DateTime.UtcNow;
+            await context.SaveChangesAsync();
+
+            return new VerifyOtpResponseDto
+            {
+                ResetToken = resetToken,
+                Message = Messages.Auth.OtpVerified
+            };
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error in VerifyOtpAsync for {Username}", verifyOtpDto.Username);
+            return new VerifyOtpResponseDto { Message = string.Format(Messages.Auth.OtpVerifyError, ex.Message) };
+        }
     }
 
-    private static AuthResponse CreatePasswordResponse(string phoneNumber, string password, bool isNewUser) => new()
+    public async Task<string> ResetPasswordAsync(ResetPasswordDto resetPasswordDto)
     {
-        Token = password,
-        ExpiresAt = DateTime.UtcNow.AddMinutes(PasswordExpirationMinutes),
-        UserId = Guid.Empty,
-        PhoneNumber = phoneNumber,
-        Role = isNewUser ? UserRole.Student.ToString() : string.Empty,
-        IsNewUser = isNewUser
-    };
+        try
+        {
+            if (string.IsNullOrWhiteSpace(resetPasswordDto.ResetToken) ||
+                string.IsNullOrWhiteSpace(resetPasswordDto.NewPassword) ||
+                string.IsNullOrWhiteSpace(resetPasswordDto.ConfirmPassword))
+                return Messages.Auth.TokenAndPasswordRequired;
 
-    private static AuthResponse CreateSuccessResponse(AppUser user, string token, bool isNewUser) => new()
-    {
-        Token = token,
-        ExpiresAt = DateTime.UtcNow.AddMinutes(TokenExpirationMinutes),
-        UserId = user.Id,
-        PhoneNumber = user.PhoneNumber,
-        Role = user.Role.ToString(),
-        IsNewUser = isNewUser
-    };
+            if (resetPasswordDto.NewPassword != resetPasswordDto.ConfirmPassword)
+                return Messages.Auth.PasswordsNotMatch;
 
-    private static AuthResponse CreateErrorResponse(string phoneNumber) => new()
+            var tokenParts = resetPasswordDto.ResetToken.Split('_');
+            if (tokenParts.Length != 2 || !Guid.TryParse(tokenParts[1], out var userId))
+                return Messages.Auth.TokenInvalid;
+
+            var user = await userManager.Users.FirstOrDefaultAsync(u => u.Id == userId);
+            if (user == null)
+                return Messages.Auth.UserNotFound;
+
+            var expectedCode = $"VERIFIED_{resetPasswordDto.ResetToken}";
+            if (user.Code != expectedCode)
+                return Messages.Auth.TokenUsedOrInvalid;
+
+            if (user.CodeDate == null)
+                return Messages.Auth.TokenInvalid;
+
+            var timeElapsed = DateTime.UtcNow - user.CodeDate.Value;
+            if (timeElapsed.TotalMinutes > ResetTokenExpirationMinutes)
+                return Messages.Auth.TokenExpired;
+
+            var passwordResetToken = await userManager.GeneratePasswordResetTokenAsync(user);
+            var resetResult = await userManager.ResetPasswordAsync(user, passwordResetToken, resetPasswordDto.NewPassword);
+            if (!resetResult.Succeeded)
+                return IdentityHelper.FormatIdentityErrors(resetResult);
+
+            user.Code = null;
+            user.CodeDate = null;
+            await context.SaveChangesAsync();
+
+            return Messages.Auth.PasswordReset;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error in ResetPasswordAsync");
+            return string.Format(Messages.Auth.PasswordResetError, ex.Message);
+        }
+    }
+
+    private static AuthResponse CreateErrorResponse(string message) => new()
     {
         Token = string.Empty,
         ExpiresAt = DateTime.UtcNow,
         UserId = Guid.Empty,
-        PhoneNumber = phoneNumber,
+        PhoneNumber = string.Empty,
         Role = string.Empty,
         IsNewUser = false
     };

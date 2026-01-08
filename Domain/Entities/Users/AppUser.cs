@@ -8,6 +8,8 @@ public class AppUser : IdentityUser<Guid>
     public DateTime CreatedAt { get; set; }
     public bool IsActive { get; set; }
     public UserRole Role { get; set; }
+    public string? Code { get; set; }
+    public DateTime? CodeDate { get; set; }
     
     public UserProfile? Profile { get; set; }
     public Monetization.UserSubscription? Subscription { get; set; }
