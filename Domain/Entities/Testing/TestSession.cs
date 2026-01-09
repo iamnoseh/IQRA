@@ -17,8 +17,10 @@ public class TestSession
     public string QuestionIdsJson { get; set; } = string.Empty;
     public bool IsCompleted { get; set; }
     public int ClusterNumber { get; set; }
+    public int? TestTemplateId { get; set; }
     
     public Users.AppUser User { get; set; } = null!;
     public Education.Subject? Subject { get; set; }
+    public TestTemplate? Template { get; set; }
     public ICollection<UserAnswer> Answers { get; set; } = new List<UserAnswer>();
 }

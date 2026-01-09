@@ -20,6 +20,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<Question> Questions { get; set; }
     public DbSet<AnswerOption> AnswerOptions { get; set; }
     public DbSet<TestSession> TestSessions { get; set; }
+    public DbSet<TestTemplate> TestTemplates { get; set; }
     public DbSet<UserAnswer> UserAnswers { get; set; }
     public DbSet<SubscriptionPlan> SubscriptionPlans { get; set; }
     public DbSet<UserSubscription> UserSubscriptions { get; set; }
@@ -139,8 +140,21 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
                 .HasForeignKey(t => t.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            entity.HasOne(t => t.Template)
+                .WithMany(tt => tt.TestSessions)
+                .HasForeignKey(t => t.TestTemplateId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             entity.Property(t => t.StartedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.Property(t => t.TotalScore).HasDefaultValue(0);
+        });
+
+        modelBuilder.Entity<TestTemplate>(entity =>
+        {
+            entity.HasKey(t => t.Id);
+            entity.Property(t => t.Name).IsRequired().HasMaxLength(100);
+            entity.Property(t => t.SubjectDistributionJson).IsRequired();
+            entity.HasIndex(t => t.ClusterNumber);
         });
 
         modelBuilder.Entity<UserAnswer>(entity =>
