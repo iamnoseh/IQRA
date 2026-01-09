@@ -1,4 +1,5 @@
 using Domain.Entities.Reference;
+using Domain.Entities.Testing;
 using Domain.Entities.Users;
 using Domain.Enums;
 using Microsoft.AspNetCore.Identity;
@@ -18,6 +19,9 @@ public static class SeedData
 
         if (!await context.Schools.AnyAsync())
             await SeedSchools(context);
+
+        if (!await context.TestTemplates.AnyAsync())
+            await SeedTestTemplates(context);
 
         await SeedAdminAsync(userManager);
     }
@@ -228,6 +232,62 @@ public static class SeedData
         };
 
         context.Schools.AddRange(schools);
+        await context.SaveChangesAsync();
+        Console.WriteLine("[Seed] ✓ 20 Мактаб");
+    }
+
+    private static async Task SeedTestTemplates(ApplicationDbContext context)
+    {
+        var templates = new[]
+        {
+            new TestTemplate
+            {
+                Id = 1,
+                ClusterNumber = 1,
+                Name = "ДМТ Кластер 1 (Математика-Физика-Англисӣ)",
+                SubjectDistributionJson = "{\"1\": 15, \"2\": 10, \"3\": 10}",
+                TotalQuestions = 35,
+                DurationMinutes = 180
+            },
+            new TestTemplate
+            {
+                Id = 2,
+                ClusterNumber = 2,
+                Name = "ДМТ Кластер 2 (Математика-Химия-Англисӣ)",
+                SubjectDistributionJson = "{\"1\": 15, \"4\": 10, \"3\": 10}",
+                TotalQuestions = 35,
+                DurationMinutes = 180
+            },
+            new TestTemplate
+            {
+                Id = 3,
+                ClusterNumber = 3,
+                Name = "ДМТ Кластер 3 (Таърих-Адабиёт-Русӣ)",
+                SubjectDistributionJson = "{\"5\": 15, \"6\": 10, \"7\": 10}",
+                TotalQuestions = 35,
+                DurationMinutes = 180
+            },
+            new TestTemplate
+            {
+                Id = 4,
+                ClusterNumber = 4,
+                Name = "ДМТ Кластер 4 (Иқтисод-Математика-Англисӣ)",
+                SubjectDistributionJson = "{\"8\": 15, \"1\": 10, \"3\": 10}",
+                TotalQuestions = 35,
+                DurationMinutes = 180
+            },
+            new TestTemplate
+            {
+                Id = 5,
+                ClusterNumber = 5,
+                Name = "ДМТ Кластер 5 (Тоҷикӣ-Таърих-Ҷуғрофия)",
+                SubjectDistributionJson = "{\"9\": 15, \"5\": 10, \"10\": 10}",
+                TotalQuestions = 35,
+                DurationMinutes = 180
+            }
+        };
+
+        context.TestTemplates.AddRange(templates);
         await context.SaveChangesAsync();
     }
 }
