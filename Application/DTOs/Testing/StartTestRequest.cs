@@ -1,3 +1,4 @@
+using Domain.Enums;
 using System.ComponentModel.DataAnnotations;
 
 namespace Application.DTOs.Testing;
@@ -5,8 +6,10 @@ namespace Application.DTOs.Testing;
 public class StartTestRequest
 {
     [Required]
-    public int SubjectId { get; set; }
+    public TestMode Mode { get; set; }
 
     [Required]
-    public string Mode { get; set; } = string.Empty;
+    public int ClusterNumber { get; set; }
+
+    public int? SubjectId { get; set; }
 }

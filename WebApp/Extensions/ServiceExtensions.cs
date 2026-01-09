@@ -13,6 +13,9 @@ public static class ServiceExtensions
         services.AddScoped<ISmsService, SmsService>();
         services.AddScoped<IOsonSmsService, OsonSmsService>();
         services.AddScoped<IUserService, UserService>();
+        services.AddScoped<ITestService, TestService>();
+        services.AddScoped<IQuestionService, QuestionService>();
+        services.AddScoped<IQuestionManagementService, QuestionManagementService>();
         
         return services;
     }
