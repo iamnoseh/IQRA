@@ -4,6 +4,10 @@ namespace Application.DTOs.Auth;
 
 public class ResetPasswordDto
 {
+    [Required(ErrorMessage = "Рақами телефон ҳатмист")]
+    [Phone(ErrorMessage = "Формати рақами телефон нодуруст аст")]
+    public string PhoneNumber { get; set; } = string.Empty;
+
     [Required(ErrorMessage = "Token ҳатмист")]
     public string ResetToken { get; set; } = string.Empty;
     
