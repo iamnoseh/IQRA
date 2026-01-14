@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using Domain.Enums;
+using Microsoft.AspNetCore.Http;
 
 namespace Application.DTOs.Users;
 
@@ -34,7 +35,6 @@ public class UpdateProfileRequest
     public string? TargetFaculty { get; set; }
 
     public int? TargetMajorId { get; set; }
-
-    [StringLength(500)]
-    public string? AvatarUrl { get; set; }
+    
+    public IFormFile? Avatar { get; set; }
 }

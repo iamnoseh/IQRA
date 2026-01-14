@@ -1,5 +1,4 @@
 using System.Net;
-using Application.Constants;
 using Application.DTOs.Users;
 using Application.Interfaces;
 using Application.Responses;
@@ -12,7 +11,8 @@ namespace Infrastructure.Services;
 
 public class UserService(
     ApplicationDbContext context,
-    UserManager<AppUser> userManager) : IUserService
+    UserManager<AppUser> userManager,
+    IFileStorageService fileStorageService) : IUserService
 {
     public async Task<Response<UserProfileDto>> GetProfileAsync(Guid userId)
     {
@@ -78,8 +78,11 @@ public class UserService(
             }
         }
 
-        if (!string.IsNullOrWhiteSpace(request.AvatarUrl))
-            profile.AvatarUrl = request.AvatarUrl;
+        if (request.Avatar != null)
+        {
+            var avatarPath = await fileStorageService.SaveFileAsync(request.Avatar, "uploads/avatars");
+            profile.AvatarUrl = avatarPath;
+        }
 
         await context.SaveChangesAsync();
         

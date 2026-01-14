@@ -27,8 +27,8 @@ public class UserController(IUserService userService) : ControllerBase
         return Ok(new { message = "Профил дарёфт шуд", data = result.Data });
     }
 
-    [HttpPut("profile")]
-    public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequest request)
+    [HttpPatch("profile")]
+    public async Task<IActionResult> UpdateProfile([FromForm] UpdateProfileRequest request)
     {
         var userIdClaim = User.FindFirst("UserId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         
