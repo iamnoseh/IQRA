@@ -8,4 +8,5 @@ public class AuthResponse
     public string PhoneNumber { get; set; } = string.Empty;
     public string Role { get; set; } = string.Empty;
     public bool IsNewUser { get; set; }
+    public string? ErrorMessage { get; set; }
 }

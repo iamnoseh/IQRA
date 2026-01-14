@@ -238,6 +238,7 @@ public class AuthService(
         UserId = Guid.Empty,
         PhoneNumber = string.Empty,
         Role = string.Empty,
-        IsNewUser = false
+        IsNewUser = false,
+        ErrorMessage = message
     };
 }

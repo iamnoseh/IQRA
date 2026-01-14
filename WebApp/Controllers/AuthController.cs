@@ -16,7 +16,7 @@ public class AuthController(IAuthService authService) : ControllerBase
         var result = await authService.RegisterAsync(request);
         
         if (string.IsNullOrEmpty(result.Token))
-            return BadRequest(new { message = "Хатогӣ ҳангоми бақайдгирӣ" });
+            return BadRequest(new { message = result.ErrorMessage ?? "Хатогӣ ҳангоми бақайдгирӣ" });
         
         return Ok(new { message = "Бақайдгирӣ муваффақ. Парол ба рақам равон карда шуд", data = result });
     }
@@ -27,7 +27,7 @@ public class AuthController(IAuthService authService) : ControllerBase
         var result = await authService.LoginAsync(loginDto);
         
         if (string.IsNullOrEmpty(result.Token))
-            return Unauthorized(new { message = Messages.Auth.InvalidCredentials });
+            return Unauthorized(new { message = result.ErrorMessage ?? Messages.Auth.InvalidCredentials });
         
         return Ok(new { message = Messages.Auth.LoginSuccess, data = result });
     }

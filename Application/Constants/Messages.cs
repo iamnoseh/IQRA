@@ -40,7 +40,7 @@ public static class Messages
         public const string UserNotAuthenticated = "Корбар аутентификатсия нашудааст";
 
         public const string InvalidPhoneFormat = "Рақами телефон нодуруст аст. Формат: +992XXXXXXXXX ё 9XXXXXXXX";
-        public const string UserAlreadyExists = "Корбар бо ин рақам аллакай вуҷуд дорад";
+        public const string UserAlreadyExists = "Корбар бо ин рақам аллакай вуҷуд дорад. Лутфан рақами дигарро истифода баред ё ба система ворид шавед.";
         public const string RegistrationError = "Хатогӣ ҳангоми бақайдгирӣ";
         public const string RegistrationSuccessSms = "Салом! Шумо дар IQRA ба қайд гирифта шудед.\n\n РАМЗ: {0}\n\nИН РАМЗРО МАХФӢ НИГОҲ ДОРЕД!\nБарои даромад рақами телефони худро истифода баред.\n\nIQRA.tj";
         public const string PasswordResetSms = "IQRA - Барқароркунии парол\n\nРАМЗИ ТАСДИҚ: {0}\n\nМуҳлат: 3 дақиқа\nАгар шумо дархост накардед, ин паёмро рад кунед.\n\nIQRA.tj";
