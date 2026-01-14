@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Security.Cryptography;
 using Application.Constants;
 using Application.DTOs.Auth;
 using Application.Interfaces;
@@ -26,7 +27,10 @@ public class AuthService(
 
     public async Task<AuthResponse> LoginAsync(LoginDto loginDto)
     {
-        var user = await userManager.FindByNameAsync(loginDto.Username);
+        var user = await userManager.Users
+            .Include(u => u.Profile)
+            .FirstOrDefaultAsync(u => u.UserName == loginDto.Username);
+        
         if (user == null)
             return CreateErrorResponse(Messages.Auth.InvalidCredentials);
 

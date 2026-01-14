@@ -55,14 +55,22 @@ public class JwtService(IConfiguration configuration) : IJwtService
         }
     }
 
-    private static List<Claim> BuildClaims(AppUser user) => new()
+    private static List<Claim> BuildClaims(AppUser user)
     {
-        new Claim("Id", user.Id.ToString()),
-        new Claim("PhoneNumber", user.PhoneNumber ?? string.Empty),
-        new Claim(ClaimTypes.Role, user.Role.ToString()),
-        new Claim("Role", user.Role.ToString()),
-        new Claim("UserId", user.Id.ToString())
-    };
+        var fullName = user.Profile != null 
+            ? $"{user.Profile.FirstName} {user.Profile.LastName}".Trim()
+            : string.Empty;
+
+        return
+        [
+            new ("Id", user.Id.ToString()),
+            new ("PhoneNumber", user.PhoneNumber ?? string.Empty),
+            new (ClaimTypes.Role, user.Role.ToString()),
+            new ("Role", user.Role.ToString()),
+            new ("UserId", user.Id.ToString()),
+            new ("FullName", fullName)
+        ];
+    }
 
     private TokenValidationParameters BuildValidationParameters(byte[] key) => new()
     {
