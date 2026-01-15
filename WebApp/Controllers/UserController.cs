@@ -28,7 +28,7 @@ public class UserController(IUserService userService) : ControllerBase
     }
 
     [HttpPatch("profile")]
-    public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequest request)
+    public async Task<IActionResult> UpdateProfile([FromForm] UpdateProfileRequest request)
     {
         var userIdClaim = User.FindFirst("UserId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         
