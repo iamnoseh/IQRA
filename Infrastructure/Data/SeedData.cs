@@ -23,33 +23,48 @@ public static class SeedData
         if (!await context.TestTemplates.AnyAsync())
             await SeedTestTemplates(context);
 
-        await SeedAdminAsync(userManager);
+        await SeedAdminAsync(context, userManager);
     }
 
-    private static async Task SeedAdminAsync(UserManager<AppUser> userManager)
+    private static async Task SeedAdminAsync(ApplicationDbContext context, UserManager<AppUser> userManager)
     {
         var adminUsername = "admin";
         var adminPassword = "Admin@123";
 
-        var existingAdmin = await userManager.FindByNameAsync(adminUsername);
-        if (existingAdmin != null)
+        var admin = await userManager.FindByNameAsync(adminUsername);
+        if (admin == null)
         {
-            return;
+            admin = new AppUser
+            {
+                UserName = adminUsername,
+                PhoneNumber = "+992900000000",
+                PhoneNumberConfirmed = true,
+                Role = UserRole.Admin,
+                CreatedAt = DateTime.UtcNow,
+                IsActive = true
+            };
+
+            var result = await userManager.CreateAsync(admin, adminPassword);
+            if (!result.Succeeded) return;
         }
 
-        var admin = new AppUser
+        if (!await context.UserProfiles.AnyAsync(p => p.UserId == admin.Id))
         {
-            UserName = adminUsername,
-            PhoneNumber = "+992000000000",
-            PhoneNumberConfirmed = true,
-            Role = UserRole.Admin,
-            CreatedAt = DateTime.UtcNow,
-            IsActive = true
-        };
+            var profile = new UserProfile
+            {
+                UserId = admin.Id,
+                FirstName = "Admin",
+                LastName = " ",
+                Gender = Gender.Male,
+                XP = 0,
+                EloRating = 1000,
+                Province = "Душанбе",
+                District = "Сино"
+            };
 
-        var result = await userManager.CreateAsync(admin, adminPassword);
-
-       
+            context.UserProfiles.Add(profile);
+            await context.SaveChangesAsync();
+        }
     }
 
     private static async Task SeedClusters(ApplicationDbContext context)
