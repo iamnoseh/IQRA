@@ -9,7 +9,7 @@ public interface IQuestionManagementService
     Task<Response<QuestionImportResultDto>> ImportQuestionsAsync(BulkQuestionImportRequest request);
     Task<Response<QuestionImportResultDto>> ValidateImportAsync(BulkQuestionImportRequest request);
     
-    Task<Response<QuestionDto>> CreateQuestionAsync(QuestionImportDto dto);
+    Task<Response<QuestionDto>> CreateQuestionAsync(CreateQuestionRequest request);
     Task<Response<QuestionDto>> UpdateQuestionAsync(long id, QuestionImportDto dto);
     Task<Response<bool>> DeleteQuestionAsync(long id);
     

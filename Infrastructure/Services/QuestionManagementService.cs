@@ -10,7 +10,7 @@ using System.Net;
 
 namespace Infrastructure.Services;
 
-public class QuestionManagementService(ApplicationDbContext context) : IQuestionManagementService
+public class QuestionManagementService(ApplicationDbContext context, IFileStorageService fileStorageService) : IQuestionManagementService
 {
     public async Task<Response<QuestionImportResultDto>> ImportQuestionsAsync(BulkQuestionImportRequest request)
     {
@@ -193,8 +193,27 @@ public class QuestionManagementService(ApplicationDbContext context) : IQuestion
         return question;
     }
 
-    public async Task<Response<QuestionDto>> CreateQuestionAsync(QuestionImportDto dto)
+    public async Task<Response<QuestionDto>> CreateQuestionAsync(CreateQuestionRequest request)
     {
+        // Convert CreateQuestionRequest to QuestionImportDto
+        var dto = new QuestionImportDto
+        {
+            SubjectId = request.SubjectId,
+            TopicId = request.TopicId,
+            Content = request.Content,
+            Explanation = request.Explanation,
+            Difficulty = request.Difficulty,
+            Type = request.Type,
+            Answers = request.Answers,
+            CorrectAnswer = request.CorrectAnswer
+        };
+
+        // Upload image if provided
+        if (request.Image != null)
+        {
+            dto.ImageUrl = await fileStorageService.SaveFileAsync(request.Image, "uploads/questions");
+        }
+
         var validationError = await ValidateQuestionAsync(dto);
         if (validationError != null)
             return new Response<QuestionDto>(HttpStatusCode.BadRequest, validationError.Message);

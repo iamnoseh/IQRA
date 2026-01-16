@@ -1,4 +1,5 @@
 using Domain.Enums;
+using Microsoft.AspNetCore.Http;
 
 namespace Application.DTOs.Testing.Management;
 
@@ -9,6 +10,22 @@ public class QuestionImportDto
     
     public string Content { get; set; } = string.Empty;
     public string? ImageUrl { get; set; }
+    public string Explanation { get; set; } = string.Empty;
+    
+    public DifficultyLevel Difficulty { get; set; }
+    public QuestionType Type { get; set; }
+    
+    public List<AnswerImportDto>? Answers { get; set; }
+    public string? CorrectAnswer { get; set; }
+}
+
+public class CreateQuestionRequest
+{
+    public int SubjectId { get; set; }
+    public int? TopicId { get; set; }
+    
+    public string Content { get; set; } = string.Empty;
+    public IFormFile? Image { get; set; }
     public string Explanation { get; set; } = string.Empty;
     
     public DifficultyLevel Difficulty { get; set; }

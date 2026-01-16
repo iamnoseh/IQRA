@@ -41,9 +41,9 @@ public class QuestionManagementController(IQuestionManagementService questionSer
     }
 
     [HttpPost("questions")]
-    public async Task<IActionResult> CreateQuestion([FromBody] QuestionImportDto dto)
+    public async Task<IActionResult> CreateQuestion([FromForm] CreateQuestionRequest request)
     {
-        var result = await questionService.CreateQuestionAsync(dto);
+        var result = await questionService.CreateQuestionAsync(request);
         
         if (!result.Success)
             return BadRequest(new { message = result.Message });
