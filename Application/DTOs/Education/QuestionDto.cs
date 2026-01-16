@@ -7,8 +7,7 @@ public class QuestionDto
     public long Id { get; set; }
     public int SubjectId { get; set; }
     public string SubjectName { get; set; } = string.Empty;
-    public int? TopicId { get; set; }
-    public string? TopicName { get; set; }
+    public string? Topic { get; set; }
     
     public string Content { get; set; } = string.Empty;
     public string? ImageUrl { get; set; }

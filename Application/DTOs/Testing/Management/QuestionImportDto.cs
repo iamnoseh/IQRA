@@ -6,7 +6,7 @@ namespace Application.DTOs.Testing.Management;
 public class QuestionImportDto
 {
     public int SubjectId { get; set; }
-    public int? TopicId { get; set; }
+    public string? Topic { get; set; }
     
     public string Content { get; set; } = string.Empty;
     public string? ImageUrl { get; set; }
@@ -22,7 +22,7 @@ public class QuestionImportDto
 public class CreateQuestionRequest
 {
     public int SubjectId { get; set; }
-    public int? TopicId { get; set; }
+    public string? Topic { get; set; }
     
     public string Content { get; set; } = string.Empty;
     public IFormFile? Image { get; set; }
@@ -31,7 +31,10 @@ public class CreateQuestionRequest
     public DifficultyLevel Difficulty { get; set; }
     public QuestionType Type { get; set; }
     
+    // Support both formats: array of objects OR JSON string
     public List<AnswerImportDto>? Answers { get; set; }
+    public string? AnswersJson { get; set; }
+    
     public string? CorrectAnswer { get; set; }
 }
 

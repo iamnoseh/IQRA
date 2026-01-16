@@ -109,11 +109,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
                 .HasForeignKey(q => q.SubjectId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            entity.HasOne(q => q.Topic)
-                .WithMany(t => t.Questions)
-                .HasForeignKey(q => q.TopicId)
-                .OnDelete(DeleteBehavior.SetNull);
-
+            entity.Property(q => q.Topic).HasMaxLength(200);
             entity.Property(q => q.Content).IsRequired();
             entity.Property(q => q.Explanation).IsRequired();
         });

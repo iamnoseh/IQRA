@@ -101,12 +101,6 @@ public class QuestionManagementService(ApplicationDbContext context, IFileStorag
         if (!subjectExists)
             return new ValidationError("SubjectId", $"Фан бо ID {dto.SubjectId} ёфт нашуд");
 
-        if (dto.TopicId.HasValue)
-        {
-            var topicExists = await context.Topics.AnyAsync(t => t.Id == dto.TopicId.Value);
-            if (!topicExists)
-                return new ValidationError("TopicId", $"Мавзуъ бо ID {dto.TopicId} ёфт нашуд");
-        }
 
         return dto.Type switch
         {
@@ -156,7 +150,7 @@ public class QuestionManagementService(ApplicationDbContext context, IFileStorag
         var question = new Question
         {
             SubjectId = dto.SubjectId,
-            TopicId = dto.TopicId,
+            Topic = dto.Topic,
             Content = dto.Content,
             ImageUrl = dto.ImageUrl,
             Explanation = dto.Explanation,
@@ -195,16 +189,46 @@ public class QuestionManagementService(ApplicationDbContext context, IFileStorag
 
     public async Task<Response<QuestionDto>> CreateQuestionAsync(CreateQuestionRequest request)
     {
+        List<AnswerImportDto>? answers = request.Answers;
+        
+        // If AnswersJson is provided, parse it
+        if (!string.IsNullOrWhiteSpace(request.AnswersJson))
+        {
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(request.AnswersJson);
+                answers = new List<AnswerImportDto>();
+                
+                foreach (var element in doc.RootElement.EnumerateArray())
+                {
+                    var answer = new AnswerImportDto
+                    {
+                        // Support both 'text' and 'answer' field names
+                        Text = element.TryGetProperty("text", out var textProp) ? textProp.GetString() ?? ""
+                             : element.TryGetProperty("answer", out var answerProp) ? answerProp.GetString() ?? ""
+                             : "",
+                        IsCorrect = element.TryGetProperty("isCorrect", out var isCorrectProp) && isCorrectProp.GetBoolean(),
+                        MatchPair = element.TryGetProperty("matchPair", out var matchProp) ? matchProp.GetString() : null
+                    };
+                    answers.Add(answer);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new Response<QuestionDto>(HttpStatusCode.BadRequest, $"AnswersJson формат нодуруст: {ex.Message}");
+            }
+        }
+
         // Convert CreateQuestionRequest to QuestionImportDto
         var dto = new QuestionImportDto
         {
             SubjectId = request.SubjectId,
-            TopicId = request.TopicId,
+            Topic = request.Topic,
             Content = request.Content,
             Explanation = request.Explanation,
             Difficulty = request.Difficulty,
             Type = request.Type,
-            Answers = request.Answers,
+            Answers = answers,
             CorrectAnswer = request.CorrectAnswer
         };
 
@@ -223,14 +247,12 @@ public class QuestionManagementService(ApplicationDbContext context, IFileStorag
         var questionDto = await context.Questions
             .Where(q => q.Id == question.Id)
             .Include(q => q.Subject)
-            .Include(q => q.Topic)
             .Select(q => new QuestionDto
             {
                 Id = q.Id,
                 SubjectId = q.SubjectId,
                 SubjectName = q.Subject.Name,
-                TopicId = q.TopicId,
-                TopicName = q.Topic!.Name,
+                Topic = q.Topic,
                 Content = q.Content,
                 ImageUrl = q.ImageUrl,
                 Explanation = q.Explanation,
@@ -256,7 +278,7 @@ public class QuestionManagementService(ApplicationDbContext context, IFileStorag
             return new Response<QuestionDto>(HttpStatusCode.BadRequest, validationError.Message);
 
         question.SubjectId = dto.SubjectId;
-        question.TopicId = dto.TopicId;
+        question.Topic = dto.Topic;
         question.Content = dto.Content;
         question.ImageUrl = dto.ImageUrl;
         question.Explanation = dto.Explanation;
@@ -292,14 +314,12 @@ public class QuestionManagementService(ApplicationDbContext context, IFileStorag
         var questionDto = await context.Questions
             .Where(q => q.Id == id)
             .Include(q => q.Subject)
-            .Include(q => q.Topic)
             .Select(q => new QuestionDto
             {
                 Id = q.Id,
                 SubjectId = q.SubjectId,
                 SubjectName = q.Subject.Name,
-                TopicId = q.TopicId,
-                TopicName = q.Topic != null ? q.Topic.Name : null,
+                Topic = q.Topic,
                 Content = q.Content,
                 ImageUrl = q.ImageUrl,
                 Explanation = q.Explanation,
@@ -328,7 +348,6 @@ public class QuestionManagementService(ApplicationDbContext context, IFileStorag
         var questions = await context.Questions
             .Where(q => q.SubjectId == subjectId)
             .Include(q => q.Subject)
-            .Include(q => q.Topic)
             .OrderBy(q => q.Id)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
@@ -337,8 +356,7 @@ public class QuestionManagementService(ApplicationDbContext context, IFileStorag
                 Id = q.Id,
                 SubjectId = q.SubjectId,
                 SubjectName = q.Subject.Name,
-                TopicId = q.TopicId,
-                TopicName = q.Topic != null ? q.Topic.Name : null,
+                Topic = q.Topic,
                 Content = q.Content,
                 ImageUrl = q.ImageUrl,
                 Explanation = q.Explanation,
@@ -352,29 +370,9 @@ public class QuestionManagementService(ApplicationDbContext context, IFileStorag
 
     public async Task<Response<List<QuestionDto>>> GetQuestionsByTopicAsync(int topicId, int page, int pageSize)
     {
-        var questions = await context.Questions
-            .Where(q => q.TopicId == topicId)
-            .Include(q => q.Subject)
-            .Include(q => q.Topic)
-            .OrderBy(q => q.Id)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .Select(q => new QuestionDto
-            {
-                Id = q.Id,
-                SubjectId = q.SubjectId,
-                SubjectName = q.Subject.Name,
-                TopicId = q.TopicId,
-                TopicName = q.Topic != null ? q.Topic.Name : null,
-                Content = q.Content,
-                ImageUrl = q.ImageUrl,
-                Explanation = q.Explanation,
-                Difficulty = q.Difficulty,
-                Type = q.Type
-            })
-            .ToListAsync();
-
-        return new Response<List<QuestionDto>>(questions);
+        // Topic is now a string field, this method is kept for backwards compatibility
+        // but will return empty list since topicId doesn't make sense anymore
+        return new Response<List<QuestionDto>>(new List<QuestionDto>());
     }
 
     public async Task<Response<QuestionDto>> GetQuestionByIdAsync(long id)
@@ -382,14 +380,12 @@ public class QuestionManagementService(ApplicationDbContext context, IFileStorag
         var question = await context.Questions
             .Where(q => q.Id == id)
             .Include(q => q.Subject)
-            .Include(q => q.Topic)
             .Select(q => new QuestionDto
             {
                 Id = q.Id,
                 SubjectId = q.SubjectId,
                 SubjectName = q.Subject.Name,
-                TopicId = q.TopicId,
-                TopicName = q.Topic != null ? q.Topic.Name : null,
+                Topic = q.Topic,
                 Content = q.Content,
                 ImageUrl = q.ImageUrl,
                 Explanation = q.Explanation,
