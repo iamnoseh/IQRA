@@ -18,4 +18,6 @@ public interface IQuestionManagementService
     Task<Response<QuestionDto>> GetQuestionByIdAsync(long id);
     
     Task<Response<QuestionStatsDto>> GetQuestionStatsAsync();
+    
+    Task<Response<QuestionListResponse>> GetAllQuestionsAsync(QuestionFilterRequest filter);
 }

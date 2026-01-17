@@ -15,6 +15,7 @@ public class Question
     public QuestionType Type { get; set; }
     
     public string Explanation { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     
     public Subject Subject { get; set; } = null!;
     public ICollection<AnswerOption> Answers { get; set; } = new List<AnswerOption>();

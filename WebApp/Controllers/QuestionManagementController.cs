@@ -75,6 +75,13 @@ public class QuestionManagementController(IQuestionManagementService questionSer
         return Ok(new { message = "Савол нест карда шуд" });
     }
 
+    [HttpGet("questions")]
+    public async Task<IActionResult> GetAllQuestions([FromQuery] QuestionFilterRequest filter)
+    {
+        var result = await questionService.GetAllQuestionsAsync(filter);
+        return Ok(result.Data);
+    }
+
     [HttpGet("questions/subject/{subjectId}")]
     public async Task<IActionResult> GetQuestionsBySubject(int subjectId, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
     {

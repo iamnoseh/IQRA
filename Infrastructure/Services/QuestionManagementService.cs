@@ -423,6 +423,75 @@ public class QuestionManagementService(ApplicationDbContext context, IFileStorag
 
         return new Response<QuestionStatsDto>(stats);
     }
+
+    public async Task<Response<QuestionListResponse>> GetAllQuestionsAsync(QuestionFilterRequest filter)
+    {
+        var query = context.Questions
+            .Include(q => q.Subject)
+            .AsQueryable();
+
+        // Apply filters
+        if (filter.SubjectId.HasValue)
+            query = query.Where(q => q.SubjectId == filter.SubjectId.Value);
+
+        if (!string.IsNullOrWhiteSpace(filter.Topic))
+            query = query.Where(q => q.Topic == filter.Topic);
+
+        if (filter.Difficulty.HasValue)
+            query = query.Where(q => q.Difficulty == filter.Difficulty.Value);
+
+        if (filter.Type.HasValue)
+            query = query.Where(q => q.Type == filter.Type.Value);
+
+        if (!string.IsNullOrWhiteSpace(filter.SearchTerm))
+            query = query.Where(q => q.Content.Contains(filter.SearchTerm));
+
+        // Get total count before pagination
+        var totalCount = await query.CountAsync();
+
+        // Apply sorting
+        query = filter.SortBy.ToLower() switch
+        {
+            "content" => filter.SortDescending 
+                ? query.OrderByDescending(q => q.Content) 
+                : query.OrderBy(q => q.Content),
+            "difficulty" => filter.SortDescending 
+                ? query.OrderByDescending(q => q.Difficulty) 
+                : query.OrderBy(q => q.Difficulty),
+            _ => filter.SortDescending 
+                ? query.OrderByDescending(q => q.CreatedAt) 
+                : query.OrderBy(q => q.CreatedAt)
+        };
+
+        // Apply pagination
+        var items = await query
+            .Skip((filter.Page - 1) * filter.PageSize)
+            .Take(filter.PageSize)
+            .Select(q => new QuestionListItemDto
+            {
+                Id = q.Id,
+                SubjectId = q.SubjectId,
+                SubjectName = q.Subject.Name,
+                Topic = q.Topic,
+                Content = q.Content,
+                ImageUrl = q.ImageUrl,
+                Difficulty = q.Difficulty,
+                Type = q.Type,
+                CreatedAt = q.CreatedAt
+            })
+            .ToListAsync();
+
+        var response = new QuestionListResponse
+        {
+            Items = items,
+            TotalCount = totalCount,
+            Page = filter.Page,
+            PageSize = filter.PageSize,
+            TotalPages = (int)Math.Ceiling(totalCount / (double)filter.PageSize)
+        };
+
+        return new Response<QuestionListResponse>(response);
+    }
 }
 
 class ValidationError(string field, string message)

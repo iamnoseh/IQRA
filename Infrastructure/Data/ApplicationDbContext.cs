@@ -112,6 +112,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.Property(q => q.Topic).HasMaxLength(200);
             entity.Property(q => q.Content).IsRequired();
             entity.Property(q => q.Explanation).IsRequired();
+            entity.Property(q => q.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
         });
 
         modelBuilder.Entity<AnswerOption>(entity =>
