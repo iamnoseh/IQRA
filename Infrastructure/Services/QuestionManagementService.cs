@@ -264,7 +264,7 @@ public class QuestionManagementService(ApplicationDbContext context, IFileStorag
         return new Response<QuestionDto>(questionDto);
     }
 
-    public async Task<Response<QuestionDto>> UpdateQuestionAsync(long id, QuestionImportDto dto)
+    public async Task<Response<QuestionDto>> UpdateQuestionAsync(long id, UpdateQuestionRequest request)
     {
         var question = await context.Questions
             .Include(q => q.Answers)
@@ -272,6 +272,54 @@ public class QuestionManagementService(ApplicationDbContext context, IFileStorag
 
         if (question == null)
             return new Response<QuestionDto>(HttpStatusCode.NotFound, "Савол ёфт нашуд");
+
+        List<AnswerImportDto>? answers = request.Answers;
+        
+        // If AnswersJson is provided, parse it
+        if (!string.IsNullOrWhiteSpace(request.AnswersJson))
+        {
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(request.AnswersJson);
+                answers = new List<AnswerImportDto>();
+                
+                foreach (var element in doc.RootElement.EnumerateArray())
+                {
+                    var answer = new AnswerImportDto
+                    {
+                        Text = element.TryGetProperty("text", out var textProp) ? textProp.GetString() ?? ""
+                             : element.TryGetProperty("answer", out var answerProp) ? answerProp.GetString() ?? ""
+                             : "",
+                        IsCorrect = element.TryGetProperty("isCorrect", out var isCorrectProp) && isCorrectProp.GetBoolean(),
+                        MatchPair = element.TryGetProperty("matchPair", out var matchProp) ? matchProp.GetString() : null
+                    };
+                    answers.Add(answer);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new Response<QuestionDto>(HttpStatusCode.BadRequest, $"AnswersJson формат нодуруст: {ex.Message}");
+            }
+        }
+
+        var dto = new QuestionImportDto
+        {
+            SubjectId = request.SubjectId,
+            Topic = request.Topic,
+            Content = request.Content,
+            ImageUrl = request.ImageUrl,
+            Explanation = request.Explanation,
+            Difficulty = request.Difficulty,
+            Type = request.Type,
+            Answers = answers,
+            CorrectAnswer = request.CorrectAnswer
+        };
+
+        // Upload image if provided
+        if (request.Image != null)
+        {
+            dto.ImageUrl = await fileStorageService.SaveFileAsync(request.Image, "uploads/questions");
+        }
 
         var validationError = await ValidateQuestionAsync(dto);
         if (validationError != null)
@@ -295,7 +343,8 @@ public class QuestionManagementService(ApplicationDbContext context, IFileStorag
                 {
                     QuestionId = question.Id,
                     Text = answer.Text,
-                    IsCorrect = answer.IsCorrect
+                    IsCorrect = answer.IsCorrect,
+                    MatchPairText = answer.MatchPair
                 });
             }
         }
@@ -314,6 +363,7 @@ public class QuestionManagementService(ApplicationDbContext context, IFileStorag
         var questionDto = await context.Questions
             .Where(q => q.Id == id)
             .Include(q => q.Subject)
+            .Include(q => q.Answers)
             .Select(q => new QuestionDto
             {
                 Id = q.Id,
@@ -324,7 +374,14 @@ public class QuestionManagementService(ApplicationDbContext context, IFileStorag
                 ImageUrl = q.ImageUrl,
                 Explanation = q.Explanation,
                 Difficulty = q.Difficulty,
-                Type = q.Type
+                Type = q.Type,
+                Answers = q.Answers.Select(a => new AnswerOptionDto
+                {
+                    Id = a.Id,
+                    Text = a.Text,
+                    MatchPairText = a.MatchPairText,
+                    IsCorrect = a.IsCorrect
+                }).ToList()
             })
             .FirstAsync();
 

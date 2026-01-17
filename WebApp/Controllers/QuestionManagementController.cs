@@ -52,9 +52,9 @@ public class QuestionManagementController(IQuestionManagementService questionSer
     }
 
     [HttpPut("questions/{id}")]
-    public async Task<IActionResult> UpdateQuestion(long id, [FromBody] QuestionImportDto dto)
+    public async Task<IActionResult> UpdateQuestion(long id, [FromForm] UpdateQuestionRequest request)
     {
-        var result = await questionService.UpdateQuestionAsync(id, dto);
+        var result = await questionService.UpdateQuestionAsync(id, request);
         
         if (!result.Success)
             return result.StatusCode == (int)System.Net.HttpStatusCode.NotFound 
