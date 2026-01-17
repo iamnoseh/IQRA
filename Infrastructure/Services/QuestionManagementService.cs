@@ -380,6 +380,7 @@ public class QuestionManagementService(ApplicationDbContext context, IFileStorag
         var question = await context.Questions
             .Where(q => q.Id == id)
             .Include(q => q.Subject)
+            .Include(q => q.Answers)
             .Select(q => new QuestionDto
             {
                 Id = q.Id,
@@ -390,7 +391,14 @@ public class QuestionManagementService(ApplicationDbContext context, IFileStorag
                 ImageUrl = q.ImageUrl,
                 Explanation = q.Explanation,
                 Difficulty = q.Difficulty,
-                Type = q.Type
+                Type = q.Type,
+                Answers = q.Answers.Select(a => new AnswerOptionDto
+                {
+                    Id = a.Id,
+                    Text = a.Text,
+                    MatchPairText = a.MatchPairText,
+                    IsCorrect = a.IsCorrect
+                }).ToList()
             })
             .FirstOrDefaultAsync();
 
