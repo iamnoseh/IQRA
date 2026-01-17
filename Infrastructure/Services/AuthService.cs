@@ -12,6 +12,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
+using Microsoft.Extensions.Configuration;
+
 namespace Infrastructure.Services;
 
 public class AuthService(
@@ -20,10 +22,12 @@ public class AuthService(
     IJwtService jwtService,
     ISmsService smsService,
     IHttpContextAccessor httpContextAccessor,
+    IConfiguration configuration,
     ILogger<AuthService> logger) : IAuthService
 {
     private const int OtpExpirationMinutes = 3;
     private const int ResetTokenExpirationMinutes = 10;
+    private readonly int _tokenExpiresMinutes = int.Parse(configuration["Jwt:ExpiresMinutes"] ?? "60");
 
     public async Task<AuthResponse> LoginAsync(LoginDto loginDto)
     {
@@ -45,7 +49,7 @@ public class AuthService(
         return new AuthResponse
         {
             Token = token,
-            ExpiresAt = DateTime.UtcNow.AddMinutes(60),
+            ExpiresAt = DateTime.UtcNow.AddMinutes(_tokenExpiresMinutes),
             UserId = user.Id,
             PhoneNumber = user.PhoneNumber ?? string.Empty,
             Role = user.Role.ToString(),
@@ -116,7 +120,7 @@ public class AuthService(
         return new AuthResponse
         {
             Token = token,
-            ExpiresAt = DateTime.UtcNow.AddMinutes(60),
+            ExpiresAt = DateTime.UtcNow.AddMinutes(_tokenExpiresMinutes),
             UserId = user.Id,
             PhoneNumber = user.PhoneNumber,
             Role = user.Role.ToString(),
@@ -189,15 +193,7 @@ public class AuthService(
 
         var resetToken = await userManager.GeneratePasswordResetTokenAsync(user);
 
-        // Note: We don't save the token to DB in user.Code anymore,
-        // but we need to ensure the OTP was verified.
-        // Since this API returns the token to the client to use in ResetPasswordAsync,
-        // we are relying on Identity's token validity.
-        // However, to prevent skipping OTP, we could mark the user as verified or just return the token.
-        // The previous logic stored "VERIFIED_" + token in DB.
-        // Here, we just return the Identity Reset Token.
-
-        user.Code = null; // Clear OTP
+        user.Code = null; 
         user.CodeDate = null;
         await context.SaveChangesAsync();
 

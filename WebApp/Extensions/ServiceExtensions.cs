@@ -18,6 +18,7 @@ public static class ServiceExtensions
         services.AddScoped<IQuestionManagementService, QuestionManagementService>();
         services.AddScoped<IFileStorageService, FileStorageService>();
         services.AddScoped<ISubjectService, SubjectService>();
+        services.AddScoped<IReferenceService, ReferenceService>();
         
         return services;
     }
