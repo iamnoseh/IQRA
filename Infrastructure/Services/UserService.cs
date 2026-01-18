@@ -84,9 +84,11 @@ public class UserService(
             profile.AvatarUrl = avatarPath;
         }
 
-        await context.SaveChangesAsync();
+        var res = await context.SaveChangesAsync();
         
-        return new Response<bool>(true) { Message = "Профил навсозӣ шуд" };
+        return res > 0
+        ? new Response<bool>(true) { Message = "Профил навсозӣ шуд" }
+        : new Response<bool>(false) { Message = "Профил навсозӣ нашуд" };
     }
 
     public async Task<Response<UserProfileDto>> GetProfileByUsernameAsync(string username)

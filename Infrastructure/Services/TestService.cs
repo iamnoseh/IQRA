@@ -10,28 +10,42 @@ using System.Text.Json;
 
 namespace Infrastructure.Services;
 
-public class TestService(ApplicationDbContext context, IQuestionService questionService) : ITestService
+public class TestService(ApplicationDbContext context, IQuestionService questionService, IAiService aiService) : ITestService
 {
     public async Task<Response<Guid>> StartTestAsync(Guid userId, StartTestRequest request)
     {
-        var template = await context.TestTemplates
-            .FirstOrDefaultAsync(t => t.ClusterNumber == request.ClusterNumber);
-        
-        if (template == null)
-            return new Response<Guid>(HttpStatusCode.BadRequest, "Template барои ин кластер ёфт нашуд");
-
-        var distribution = JsonSerializer.Deserialize<Dictionary<string, int>>(template.SubjectDistributionJson);
         var questionIds = new List<long>();
-        
-        foreach (var (subjectIdStr, count) in distribution!)
+        int? templateId = null;
+
+        if (request.Mode == TestMode.SubjectTest)
         {
-            var subjectId = int.Parse(subjectIdStr);
-            var questions = await questionService.GetRandomQuestionsAsync(subjectId, count);
+            if (request.SubjectId == null)
+                return new Response<Guid>(HttpStatusCode.BadRequest, "Фан интихоб нашудааст");
+
+            var questions = await questionService.GetRandomQuestionsAsync(request.SubjectId.Value, 15);
             questionIds.AddRange(questions.Select(q => q.Id));
+        }
+        else
+        {
+            var template = await context.TestTemplates
+                .FirstOrDefaultAsync(t => t.ClusterNumber == request.ClusterNumber);
+            
+            if (template == null)
+                return new Response<Guid>(HttpStatusCode.BadRequest, "Template барои ин кластер ёфт нашуд");
+
+            templateId = template.Id;
+            var distribution = JsonSerializer.Deserialize<Dictionary<string, int>>(template.SubjectDistributionJson);
+            
+            foreach (var (subjectIdStr, count) in distribution!)
+            {
+                var subjectId = int.Parse(subjectIdStr);
+                var questions = await questionService.GetRandomQuestionsAsync(subjectId, count);
+                questionIds.AddRange(questions.Select(q => q.Id));
+            }
         }
 
         if (questionIds.Count == 0)
-            return new Response<Guid>(HttpStatusCode.BadRequest, "Саволҳо барои ин кластер ёфт нашуданд");
+            return new Response<Guid>(HttpStatusCode.BadRequest, "Саволҳо ёфт нашуданд");
 
         var session = new TestSession
         {
@@ -39,7 +53,8 @@ public class TestService(ApplicationDbContext context, IQuestionService question
             UserId = userId,
             Mode = request.Mode,
             ClusterNumber = request.ClusterNumber,
-            TestTemplateId = template.Id,
+            SubjectId = request.SubjectId,
+            TestTemplateId = templateId,
             QuestionIdsJson = JsonSerializer.Serialize(questionIds),
             StartedAt = DateTime.UtcNow,
             IsCompleted = false
@@ -86,26 +101,32 @@ public class TestService(ApplicationDbContext context, IQuestionService question
         return new Response<List<QuestionWithAnswersDto>>(questions);
     }
 
-    public async Task<Response<bool>> SubmitAnswerAsync(Guid userId, SubmitAnswerRequest request)
+    public async Task<Response<AnswerFeedbackDto>> SubmitAnswerAsync(Guid userId, SubmitAnswerRequest request)
     {
         var session = await context.TestSessions.FindAsync(request.TestSessionId);
         if (session == null || session.UserId != userId)
-            return new Response<bool>(HttpStatusCode.NotFound, "Тест ёфт нашуд");
+            return new Response<AnswerFeedbackDto>(HttpStatusCode.NotFound, "Тест ёфт нашуд");
 
         if (session.IsCompleted)
-            return new Response<bool>(HttpStatusCode.BadRequest, "Тест аллакай тамом шудааст");
+            return new Response<AnswerFeedbackDto>(HttpStatusCode.BadRequest, "Тест аллакай тамом шудааст");
 
         var existingAnswer = await context.UserAnswers
             .FirstOrDefaultAsync(ua => ua.TestSessionId == request.TestSessionId 
                 && ua.QuestionId == request.QuestionId);
 
         if (existingAnswer != null)
-            return new Response<bool>(HttpStatusCode.BadRequest, "Шумо аллакай ба ин савол ҷавоб додаед");
+            return new Response<AnswerFeedbackDto>(HttpStatusCode.BadRequest, "Шумо аллакай ба ин савол ҷавоб додаед");
 
-        var correctAnswer = await context.AnswerOptions
-            .FirstOrDefaultAsync(a => a.QuestionId == request.QuestionId && a.IsCorrect);
+        var question = await context.Questions
+            .Include(q => q.Answers)
+            .FirstOrDefaultAsync(q => q.Id == request.QuestionId);
 
-        var isCorrect = correctAnswer?.Id == request.ChosenAnswerId;
+        if (question == null)
+            return new Response<AnswerFeedbackDto>(HttpStatusCode.NotFound, "Савол ёфт нашуд");
+
+        var correctAnswer = question.Answers.First(a => a.IsCorrect);
+        var chosenAnswer = question.Answers.First(a => a.Id == request.ChosenAnswerId);
+        var isCorrect = correctAnswer.Id == request.ChosenAnswerId;
 
         var userAnswer = new UserAnswer
         {
@@ -119,7 +140,18 @@ public class TestService(ApplicationDbContext context, IQuestionService question
         context.UserAnswers.Add(userAnswer);
         await context.SaveChangesAsync();
 
-        return new Response<bool>(true);
+        var feedbackText = isCorrect 
+            ? await aiService.GetMotivationAsync(question.Content, chosenAnswer.Text)
+            : await aiService.GetExplanationAsync(question.Content, correctAnswer.Text, chosenAnswer.Text);
+
+        var feedback = new AnswerFeedbackDto
+        {
+            IsCorrect = isCorrect,
+            CorrectAnswerId = isCorrect ? null : correctAnswer.Id,
+            FeedbackText = feedbackText
+        };
+
+        return new Response<AnswerFeedbackDto>(feedback);
     }
 
     public async Task<Response<TestResultDto>> FinishTestAsync(Guid userId, Guid testSessionId)

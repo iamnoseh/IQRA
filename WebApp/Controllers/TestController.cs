@@ -43,7 +43,7 @@ public class TestController(ITestService testService) : ControllerBase
         if (!result.Success)
             return BadRequest(new { message = result.Message });
 
-        return Ok(new { message = "Ҷавоб қабул шуд" });
+        return Ok(new { message = "Ҷавоб қабул шуд", data = result.Data });
     }
 
     [HttpPost("{testSessionId}/finish")]

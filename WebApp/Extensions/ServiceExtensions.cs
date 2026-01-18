@@ -1,11 +1,12 @@
 using Application.Interfaces;
 using Infrastructure.Services;
+using Microsoft.Extensions.Configuration;
 
 namespace WebApp.Extensions;
 
 public static class ServiceExtensions
 {
-    public static IServiceCollection AddApplicationServices(this IServiceCollection services)
+    public static IServiceCollection AddApplicationServices(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddHttpContextAccessor();
         services.AddScoped<IAuthService, AuthService>();
@@ -18,7 +19,15 @@ public static class ServiceExtensions
         services.AddScoped<IQuestionManagementService, QuestionManagementService>();
         services.AddScoped<IFileStorageService, FileStorageService>();
         services.AddScoped<ISubjectService, SubjectService>();
-        services.AddScoped<IReferenceService, ReferenceService>();
+        services.AddScoped<IAiService, OpenRouterAiService>();
+        services.AddHttpClient<IAiService, OpenRouterAiService>(client =>
+        {
+            client.BaseAddress = new Uri(configuration["OpenRouter:BaseUrl"] ?? "https://openrouter.ai/api/v1/");
+            client.DefaultRequestHeaders.Add("Authorization", $"Bearer {configuration["OpenRouter:ApiKey"]}");
+            client.DefaultRequestHeaders.Add("HTTP-Referer", "https://iqra.tj");
+            client.DefaultRequestHeaders.Add("X-Title", "IQRA Education");
+            client.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+        });
         
         return services;
     }
