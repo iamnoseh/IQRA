@@ -169,7 +169,8 @@ public class QuestionManagementService(ApplicationDbContext context, IFileStorag
                 {
                     QuestionId = question.Id,
                     Text = answer.Text,
-                    IsCorrect = answer.IsCorrect
+                    IsCorrect = answer.IsCorrect,
+                    MatchPairText = answer.MatchPair
                 });
             }
         }
@@ -191,7 +192,6 @@ public class QuestionManagementService(ApplicationDbContext context, IFileStorag
     {
         List<AnswerImportDto>? answers = request.Answers;
         
-        // If AnswersJson is provided, parse it
         if (!string.IsNullOrWhiteSpace(request.AnswersJson))
         {
             try

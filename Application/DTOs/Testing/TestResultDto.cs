@@ -9,6 +9,7 @@ public class TestResultDto
     public double Percentage { get; set; }
     public bool IsPassed { get; set; }
     public int XPEarned { get; set; }
+    public string? AiAnalysis { get; set; }
     public List<QuestionResultDto> Results { get; set; } = new();
 }
 

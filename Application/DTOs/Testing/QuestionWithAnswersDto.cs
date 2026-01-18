@@ -7,6 +7,9 @@ public class QuestionWithAnswersDto
     public string? ImageUrl { get; set; }
     public int SubjectId { get; set; }
     public string SubjectName { get; set; } = string.Empty;
+    public string? Topic { get; set; }
+    public Domain.Enums.DifficultyLevel Difficulty { get; set; }
+    public Domain.Enums.QuestionType Type { get; set; }
     public List<AnswerOptionDto> Answers { get; set; } = new();
 }
 
@@ -14,4 +17,5 @@ public class AnswerOptionDto
 {
     public long Id { get; set; }
     public string Text { get; set; } = string.Empty;
+    public string? MatchPairText { get; set; }
 }

@@ -19,14 +19,11 @@ public static class ServiceExtensions
         services.AddScoped<IQuestionManagementService, QuestionManagementService>();
         services.AddScoped<IFileStorageService, FileStorageService>();
         services.AddScoped<ISubjectService, SubjectService>();
-        services.AddScoped<IAiService, OpenRouterAiService>();
-        services.AddHttpClient<IAiService, OpenRouterAiService>(client =>
+        services.AddScoped<IReferenceService, ReferenceService>();
+        services.AddScoped<IAiService, GoogleGeminiAiService>();
+        services.AddHttpClient<IAiService, GoogleGeminiAiService>(client =>
         {
-            client.BaseAddress = new Uri(configuration["OpenRouter:BaseUrl"] ?? "https://openrouter.ai/api/v1/");
-            client.DefaultRequestHeaders.Add("Authorization", $"Bearer {configuration["OpenRouter:ApiKey"]}");
-            client.DefaultRequestHeaders.Add("HTTP-Referer", "https://iqra.tj");
-            client.DefaultRequestHeaders.Add("X-Title", "IQRA Education");
-            client.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+            client.BaseAddress = new Uri(configuration["GoogleGemini:BaseUrl"] ?? "https://generativelanguage.googleapis.com/v1beta/models/");
         });
         
         return services;

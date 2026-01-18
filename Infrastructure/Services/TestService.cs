@@ -85,10 +85,14 @@ public class TestService(ApplicationDbContext context, IQuestionService question
                 ImageUrl = q.ImageUrl,
                 SubjectId = q.SubjectId,
                 SubjectName = q.Subject.Name,
+                Topic = q.Topic,
+                Difficulty = q.Difficulty,
+                Type = q.Type,
                 Answers = q.Answers.Select(a => new AnswerOptionDto 
                 { 
                     Id = a.Id, 
-                    Text = a.Text 
+                    Text = a.Text,
+                    MatchPairText = a.MatchPairText
                 }).ToList()
             })
             .ToListAsync();
@@ -124,15 +128,54 @@ public class TestService(ApplicationDbContext context, IQuestionService question
         if (question == null)
             return new Response<AnswerFeedbackDto>(HttpStatusCode.NotFound, "Савол ёфт нашуд");
 
-        var correctAnswer = question.Answers.First(a => a.IsCorrect);
-        var chosenAnswer = question.Answers.First(a => a.Id == request.ChosenAnswerId);
-        var isCorrect = correctAnswer.Id == request.ChosenAnswerId;
+        bool isCorrect = false;
+        long? correctAnswerId = null;
+        string? correctAnswerText = null;
+        string? chosenAnswerText = null;
+
+        if (question.Type == QuestionType.SingleChoice)
+        {
+            var correctOption = question.Answers.FirstOrDefault(a => a.IsCorrect);
+            correctAnswerId = correctOption?.Id;
+            correctAnswerText = correctOption?.Text;
+            isCorrect = correctAnswerId == request.ChosenAnswerId;
+            chosenAnswerText = question.Answers.FirstOrDefault(a => a.Id == request.ChosenAnswerId)?.Text;
+        }
+        else if (question.Type == QuestionType.ClosedAnswer)
+        {
+            var correctOption = question.Answers.FirstOrDefault(a => a.IsCorrect);
+            correctAnswerText = correctOption?.Text;
+            isCorrect = correctOption?.Text.Trim().Equals(request.TextResponse?.Trim(), StringComparison.OrdinalIgnoreCase) ?? false;
+            chosenAnswerText = request.TextResponse;
+        }
+        else if (question.Type == QuestionType.Matching)
+        {
+            // For matching, we expect TextResponse to be a JSON representation of matches
+            // or a specific format. For now, we compare the sorted list of pairs.
+            var correctPairs = question.Answers
+                .OrderBy(a => a.Text)
+                .Select(a => $"{a.Text.Trim()}:{a.MatchPairText?.Trim()}")
+                .ToList();
+            
+            correctAnswerText = string.Join(", ", correctPairs);
+            
+            // Assume request.TextResponse is "A:1, B:2, C:3" or similar
+            var userResponse = request.TextResponse ?? "";
+            var userPairs = userResponse.Split(',')
+                .Select(p => p.Trim())
+                .OrderBy(p => p.Split(':')[0].Trim())
+                .ToList();
+
+            isCorrect = userPairs.SequenceEqual(correctPairs);
+            chosenAnswerText = userResponse;
+        }
 
         var userAnswer = new UserAnswer
         {
             TestSessionId = request.TestSessionId,
             QuestionId = request.QuestionId,
             ChosenAnswerId = request.ChosenAnswerId,
+            TextResponse = request.TextResponse,
             IsCorrect = isCorrect,
             TimeSpentSeconds = request.TimeSpentSeconds
         };
@@ -140,14 +183,19 @@ public class TestService(ApplicationDbContext context, IQuestionService question
         context.UserAnswers.Add(userAnswer);
         await context.SaveChangesAsync();
 
-        var feedbackText = isCorrect 
-            ? await aiService.GetMotivationAsync(question.Content, chosenAnswer.Text)
-            : await aiService.GetExplanationAsync(question.Content, correctAnswer.Text, chosenAnswer.Text);
+        string feedbackText = string.Empty;
+        if (request.RequestAiFeedback)
+        {
+            feedbackText = isCorrect 
+                ? await aiService.GetMotivationAsync(question.Content, chosenAnswerText ?? "")
+                : await aiService.GetExplanationAsync(question.Content, correctAnswerText ?? "", chosenAnswerText ?? "");
+        }
 
         var feedback = new AnswerFeedbackDto
         {
             IsCorrect = isCorrect,
-            CorrectAnswerId = isCorrect ? null : correctAnswer.Id,
+            CorrectAnswerId = isCorrect ? null : correctAnswerId,
+            CorrectAnswerText = isCorrect ? null : correctAnswerText,
             FeedbackText = feedbackText
         };
 
@@ -172,6 +220,18 @@ public class TestService(ApplicationDbContext context, IQuestionService question
 
         await context.SaveChangesAsync();
 
+        var questionIds = session.Answers.Select(a => a.QuestionId).ToList();
+        var questions = await context.Questions
+            .Where(q => questionIds.Contains(q.Id))
+            .ToDictionaryAsync(q => q.Id, q => q.Content);
+
+        var summary = session.Answers.Select(a => (
+            Question: questions.GetValueOrDefault(a.QuestionId) ?? "Савол ёфт нашуд",
+            IsCorrect: a.IsCorrect
+        )).ToList();
+
+        var aiAnalysis = await aiService.AnalyzeTestResultAsync(session.TotalScore, questionIds.Count, summary);
+
         var totalQuestions = session.Answers.Count;
         var percentage = totalQuestions > 0 ? (double)session.TotalScore / totalQuestions * 100 : 0;
 
@@ -184,6 +244,7 @@ public class TestService(ApplicationDbContext context, IQuestionService question
             Percentage = percentage,
             IsPassed = percentage >= 60,
             XPEarned = session.TotalScore * 10,
+            AiAnalysis = aiAnalysis,
             Results = session.Answers.Select(a => new QuestionResultDto
             {
                 QuestionId = a.QuestionId,

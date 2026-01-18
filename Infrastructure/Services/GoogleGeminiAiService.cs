@@ -4,27 +4,30 @@ using Microsoft.Extensions.Logging;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Diagnostics;
+using System.Text;
 
 namespace Infrastructure.Services;
 
-public class OpenRouterAiService : IAiService
+public class GoogleGeminiAiService : IAiService
 {
     private readonly HttpClient _httpClient;
-    private readonly ILogger<OpenRouterAiService> _logger;
+    private readonly ILogger<GoogleGeminiAiService> _logger;
     private readonly string _apiKey;
     private readonly string _model;
+    private readonly string _baseUrl;
     private const int MaxRetries = 3;
     private const int InitialRetryDelayMs = 1000;
 
-    public OpenRouterAiService(
+    public GoogleGeminiAiService(
         HttpClient httpClient, 
         IConfiguration configuration,
-        ILogger<OpenRouterAiService> logger)
+        ILogger<GoogleGeminiAiService> logger)
     {
         _httpClient = httpClient;
         _logger = logger;
-        _apiKey = configuration["OpenRouter:ApiKey"]!;
-        _model = configuration["OpenRouter:Model"] ?? "google/learnlm-1.5-pro-experimental:free";
+        _apiKey = configuration["GoogleGemini:ApiKey"]!;
+        _model = configuration["GoogleGemini:Model"] ?? "gemini-2.0-flash";
+        _baseUrl = configuration["GoogleGemini:BaseUrl"] ?? "https://generativelanguage.googleapis.com/v1beta/models/";
         
         // Configure timeout
         _httpClient.Timeout = TimeSpan.FromSeconds(120);
@@ -94,68 +97,60 @@ public class OpenRouterAiService : IAiService
     {
         var sw = Stopwatch.StartNew();
         int retryDelay = InitialRetryDelayMs;
+        var url = $"{_model}:generateContent?key={_apiKey}";
 
         for (int attempt = 0; attempt < MaxRetries; attempt++)
         {
             try
             {
-                _logger.LogInformation($"OpenRouter request attempt {attempt + 1}/{MaxRetries}, prompt length: {prompt.Length}");
+                _logger.LogInformation($"Google Gemini request attempt {attempt + 1}/{MaxRetries}, prompt length: {prompt.Length}");
 
                 var requestBody = new
                 {
-                    model = _model,
-                    messages = new[]
+                    contents = new[]
                     {
-                        new { role = "user", content = prompt }
+                        new { parts = new[] { new { text = prompt } } }
                     },
-                    temperature = 0.7,
-                    max_tokens = 1500 // Limit response size
+                    generationConfig = new
+                    {
+                        temperature = 0.7,
+                        maxOutputTokens = 1500
+                    }
                 };
 
-                var response = await _httpClient.PostAsJsonAsync("chat/completions", requestBody);
+                var response = await _httpClient.PostAsJsonAsync(url, requestBody);
                 sw.Stop();
 
                 if (!response.IsSuccessStatusCode)
                 {
                     var errorContent = await response.Content.ReadAsStringAsync();
-                    _logger.LogError($"OpenRouter Error ({response.StatusCode}) after {sw.ElapsedMilliseconds}ms: {errorContent}");
+                    _logger.LogError($"Google Gemini Error ({response.StatusCode}) after {sw.ElapsedMilliseconds}ms: {errorContent}");
                     
-                    // Check rate limit headers
-                    if (response.Headers.TryGetValues("X-RateLimit-Remaining", out var remainingValues))
-                    {
-                        var remaining = remainingValues.FirstOrDefault();
-                        _logger.LogWarning($"Rate limit remaining: {remaining}");
-                        
-                        if (response.Headers.TryGetValues("X-RateLimit-Reset", out var resetValues))
-                        {
-                            var resetTimestamp = resetValues.FirstOrDefault();
-                            if (long.TryParse(resetTimestamp, out var resetMs))
-                            {
-                                var resetTime = DateTimeOffset.FromUnixTimeMilliseconds(resetMs);
-                                _logger.LogWarning($"Rate limit resets at: {resetTime.LocalDateTime}");
-                            }
-                        }
-                    }
-                    
-                    // Rate limit error (429) - don't retry immediately
+                    // Rate limit error (429)
                     if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
                     {
-                        _logger.LogError("Rate limit exceeded. Please add credits or wait until reset time.");
+                        _logger.LogError("Rate limit exceeded for Google Gemini.");
+                        if (attempt < MaxRetries - 1)
+                        {
+                            await Task.Delay(retryDelay * 2);
+                            retryDelay *= 2;
+                            sw.Restart();
+                            continue;
+                        }
                         return null;
                     }
                     
-                    // Don't retry on other 4xx errors (client errors)
+                    // Don't retry on other 4xx errors
                     if ((int)response.StatusCode >= 400 && (int)response.StatusCode < 500)
                     {
                         return null;
                     }
                     
-                    // Retry on 5xx errors (server errors)
+                    // Retry on 5xx errors
                     if (attempt < MaxRetries - 1)
                     {
-                        _logger.LogWarning($"Retrying after {retryDelay}ms...");
                         await Task.Delay(retryDelay);
-                        retryDelay *= 2; // Exponential backoff
+                        retryDelay *= 2;
                         sw.Restart();
                         continue;
                     }
@@ -163,47 +158,22 @@ public class OpenRouterAiService : IAiService
                     return null;
                 }
 
-                var result = await response.Content.ReadFromJsonAsync<JsonElement>();
-                var content = result.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString();
+                var jsonResponse = await response.Content.ReadFromJsonAsync<JsonElement>();
                 
-                _logger.LogInformation($"OpenRouter request successful after {sw.ElapsedMilliseconds}ms");
-                return content;
-            }
-            catch (HttpRequestException ex)
-            {
-                sw.Stop();
-                _logger.LogError($"HTTP error on attempt {attempt + 1}/{MaxRetries} after {sw.ElapsedMilliseconds}ms: {ex.Message}");
-                
-                if (attempt < MaxRetries - 1)
+                // Navigate through candidates[0].content.parts[0].text
+                if (jsonResponse.TryGetProperty("candidates", out var candidates) && 
+                    candidates.GetArrayLength() > 0 &&
+                    candidates[0].TryGetProperty("content", out var contentNode) &&
+                    contentNode.TryGetProperty("parts", out var parts) &&
+                    parts.GetArrayLength() > 0)
                 {
-                    _logger.LogWarning($"Retrying after {retryDelay}ms due to connection error...");
-                    await Task.Delay(retryDelay);
-                    retryDelay *= 2; // Exponential backoff
-                    sw.Restart();
+                    var content = parts[0].GetProperty("text").GetString();
+                    _logger.LogInformation($"Google Gemini request successful after {sw.ElapsedMilliseconds}ms");
+                    return content;
                 }
-                else
-                {
-                    _logger.LogError($"All {MaxRetries} attempts failed. Last error: {ex.Message}");
-                    return null;
-                }
-            }
-            catch (TaskCanceledException ex)
-            {
-                sw.Stop();
-                _logger.LogError($"Request timeout on attempt {attempt + 1}/{MaxRetries} after {sw.ElapsedMilliseconds}ms: {ex.Message}");
-                
-                if (attempt < MaxRetries - 1)
-                {
-                    _logger.LogWarning($"Retrying after {retryDelay}ms due to timeout...");
-                    await Task.Delay(retryDelay);
-                    retryDelay *= 2;
-                    sw.Restart();
-                }
-                else
-                {
-                    _logger.LogError($"All {MaxRetries} attempts timed out");
-                    return null;
-                }
+
+                _logger.LogWarning("Google Gemini returned success but no content found in response.");
+                return null;
             }
             catch (Exception ex)
             {
@@ -212,14 +182,12 @@ public class OpenRouterAiService : IAiService
                 
                 if (attempt < MaxRetries - 1)
                 {
-                    _logger.LogWarning($"Retrying after {retryDelay}ms due to unexpected error...");
                     await Task.Delay(retryDelay);
                     retryDelay *= 2;
                     sw.Restart();
                 }
                 else
                 {
-                    _logger.LogError($"All {MaxRetries} attempts failed with unexpected errors");
                     return null;
                 }
             }
