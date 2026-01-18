@@ -192,7 +192,9 @@ public class QuestionManagementService(ApplicationDbContext context, IFileStorag
     {
         List<AnswerImportDto>? answers = request.Answers;
         
-        if (!string.IsNullOrWhiteSpace(request.AnswersJson))
+        if (!string.IsNullOrWhiteSpace(request.AnswersJson) && 
+            request.AnswersJson != "undefined" && 
+            (request.Type == QuestionType.SingleChoice || request.Type == QuestionType.Matching))
         {
             try
             {

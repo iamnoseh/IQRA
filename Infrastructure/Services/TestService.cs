@@ -99,7 +99,31 @@ public class TestService(ApplicationDbContext context, IQuestionService question
 
         foreach (var question in questions)
         {
-            question.Answers = question.Answers.OrderBy(_ => Guid.NewGuid()).ToList();
+            if (question.Type == QuestionType.ClosedAnswer)
+            {
+                question.Answers = new List<AnswerOptionDto>();
+            }
+            else if (question.Type == QuestionType.Matching)
+            {
+                var pool = question.Answers
+                    .Where(a => !string.IsNullOrWhiteSpace(a.MatchPairText))
+                    .Select(a => a.MatchPairText!)
+                    .OrderBy(_ => Guid.NewGuid())
+                    .ToList();
+                
+                question.MatchOptions = pool;
+
+                foreach (var answer in question.Answers)
+                {
+                    answer.MatchPairText = null;
+                }
+                
+                question.Answers = question.Answers.OrderBy(_ => Guid.NewGuid()).ToList();
+            }
+            else
+            {
+                question.Answers = question.Answers.OrderBy(_ => Guid.NewGuid()).ToList();
+            }
         }
 
         return new Response<List<QuestionWithAnswersDto>>(questions);
@@ -150,8 +174,6 @@ public class TestService(ApplicationDbContext context, IQuestionService question
         }
         else if (question.Type == QuestionType.Matching)
         {
-            // For matching, we expect TextResponse to be a JSON representation of matches
-            // or a specific format. For now, we compare the sorted list of pairs.
             var correctPairs = question.Answers
                 .OrderBy(a => a.Text)
                 .Select(a => $"{a.Text.Trim()}:{a.MatchPairText?.Trim()}")
@@ -159,7 +181,6 @@ public class TestService(ApplicationDbContext context, IQuestionService question
             
             correctAnswerText = string.Join(", ", correctPairs);
             
-            // Assume request.TextResponse is "A:1, B:2, C:3" or similar
             var userResponse = request.TextResponse ?? "";
             var userPairs = userResponse.Split(',')
                 .Select(p => p.Trim())

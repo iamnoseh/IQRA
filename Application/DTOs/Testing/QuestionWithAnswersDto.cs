@@ -11,6 +11,7 @@ public class QuestionWithAnswersDto
     public Domain.Enums.DifficultyLevel Difficulty { get; set; }
     public Domain.Enums.QuestionType Type { get; set; }
     public List<AnswerOptionDto> Answers { get; set; } = new();
+    public List<string> MatchOptions { get; set; } = new();
 }
 
 public class AnswerOptionDto
