@@ -33,36 +33,35 @@ public class OpenRouterAiService : IAiService
     public async Task<string> GetExplanationAsync(string question, string correctAnswer, string chosenAnswer)
     {
         var prompt = $@"
-Шумо як донишманди тоҷик ва омӯзгори меҳрубон ҳастед. Корбар ба саволи зерин ҷавоби нодуруст дод.
-Савол: ""{question}""
-Ҷавоби интихобшуда: ""{chosenAnswer}""
-Ҷавоби дуруст: ""{correctAnswer}""
+Вопрос: ""{question}""
+Выбранный ответ (Неверный): ""{chosenAnswer}""
+Правильный ответ: ""{correctAnswer}""
 
-Вазифаи шумо:
-1. Фаҳмонед, ки чаро ҷавоби интихобшуда хато аст.
-2. Маъно ва моҳияти ҷавоби дурустро пурра шарҳ диҳед.
-3. Дар бораи ҷавоби дуруст як факти таърихӣ, илмӣ ё ҷолибе илова кунед, ки дониши корбарро васеъ кунад (ин қисм бояд хеле ҷолиб бошад).
-4. Танҳо ба забони тоҷикӣ, бо лаҳни ҳавасмандкунанда ва ҷолиб нависед.
-5. Матни ниҳоӣ бояд диққатҷалбкунанда ва илмӣ бошад.
-";
+Задача:
+Кратко объясните, почему выбранный ответ неверен и в чем суть правильного ответа.
+- Без приветствий.
+- Максимум 3 предложения.
+- Только на русском языке.";
         var result = await GetAiResponseAsync(prompt);
-        return result ?? "Мутаассифона, AI шарҳ дода натавонист. Аммо кӯшиши шумо шоистаи таҳсин аст! Давом диҳед.";
+        return result ?? "К сожалению, AI не смог предоставить объяснение.";
     }
 
     public async Task<string> GetMotivationAsync(string question, string answer)
     {
-        var prompt = $@"
-Шумо як мураббии муваффақият ҳастед. Корбар ба саволи зерин дуруст ҷавоб дод:
-Савол: ""{question}""
-Ҷавоб: ""{answer}""
-
-Вазифаи шумо:
-1. Корбарро барои дониши баландаш самимона ва бо шавқ табрик кунед.
-2. Дар бораи ин ҷавоб ё мавзӯъ як ҷумлаи иловагии ҷолиб (Deep Fact) бигӯед, то ӯро боз ҳам бештар ба шавқ оред.
-3. Танҳо ба забони тоҷикӣ ва хеле ҷолиб нависед.
-";
+        var prompt = $@"Напишите одну короткую мотивирующую фразу за правильный ответ на вопрос: ""{question}"" (без приветствий, на русском).";
         var result = await GetAiResponseAsync(prompt);
-        return result ?? "Офарин! Ҷавоби шумо дуруст аст. Кӯшишро идома диҳед!";
+        return result ?? "Молодец! Ответ верный.";
+    }
+
+    public async Task<string> GetDashboardMotivationAsync()
+    {
+        var prompt = @"Напишите одну вдохновляющую цитату или мотивирующее высказывание известного ученого или успешного человека (современного или классика).
+- На русском языке.
+- Без вступлений, только цитата и автор.
+- Чтобы вдохновляло студентов на учебу.";
+        
+        var result = await GetAiResponseAsync(prompt);
+        return result ?? "Знание — сила.";
     }
 
     public async Task<string> AnalyzeTestResultAsync(int totalScore, int totalQuestions, List<(string Question, bool IsCorrect)> summary)
@@ -70,24 +69,11 @@ public class OpenRouterAiService : IAiService
         // Limit summary to prevent large requests
         var limitedSummary = summary.Take(20).ToList();
         var resultsText = string.Join("\n", limitedSummary.Select(s => 
-            $"- Савол: {(s.Question.Length > 100 ? s.Question.Substring(0, 100) + "..." : s.Question)} | Натиҷа: {(s.IsCorrect ? "Дуруст" : "Хато")}"));
+            $"- Вопрос: {(s.Question.Length > 100 ? s.Question.Substring(0, 100) + "..." : s.Question)} | Результат: {(s.IsCorrect ? "Верно" : "Ошибка")}"));
         
-        var prompt = $@"
-Шумо як таҳлилгари соҳаи маориф ва равоншиноси таълимӣ ҳастед. Корбар тестро анҷом дод.
-Натиҷа: {totalScore} аз {totalQuestions} дуруст.
-
-Маълумоти сессия:
-{resultsText}
-
-Вазифаи шумо:
-1. Таҳлили амиқи натиҷаҳоро анҷом диҳед.
-2. Муайян кунед, ки корбар дар кадом қисматҳо қавӣ аст ва дар куҷо заиф.
-3. Тавсияҳои конкретӣ ва илмӣ диҳед, ки чӣ гуна дониши худро дар ин мавзӯъҳо мукаммал кунад.
-4. Лаҳни шумо бояд касбӣ, ҳавасмандкунанда ва диққатҷалбкунанда бошад.
-5. Танҳо ба забони тоҷикӣ нависед.
-";
+        var prompt = $"Краткий анализ результатов ({totalScore} из {totalQuestions}). 3 важных совета. Без приветствий. Только на русском.";
         var result = await GetAiResponseAsync(prompt);
-        return result ?? "Таҳлили AI муваққатан дастнорас аст. Аммо шумо тестро тамом кардед, ки ин аллакай дастовард аст!";
+        return result ?? "Анализ AI временно недоступен.";
     }
 
     private async Task<string?> GetAiResponseAsync(string prompt)

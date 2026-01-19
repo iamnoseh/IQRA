@@ -43,32 +43,42 @@ public class GoogleGeminiAiService : IAiService
     public async Task<string> GetExplanationAsync(string question, string correctAnswer, string chosenAnswer)
     {
         var prompt = $@"
-Савол: ""{question}""
-Ҷавоби интихобшуда (Хато): ""{chosenAnswer}""
-Ҷавоби дуруст: ""{correctAnswer}""
+Вопрос: ""{question}""
+Выбранный ответ (Неверный): ""{chosenAnswer}""
+Правильный ответ: ""{correctAnswer}""
 
-Вазифа:
-Кӯтоҳ ва фаҳмо шарҳ диҳед, ки чаро ҷавоби интихобшуда хато аст ва ҷавоби дуруст чист.
-- Бе салом ва муқаддима.
-- Ҳадди аксар 3 ҷумла бошад.
-- Танҳо ба забони тоҷикӣ.";
+Задача:
+Кратко объясните, почему выбранный ответ неверен и в чем суть правильного ответа.
+- Без приветствий.
+- Максимум 3 предложения.
+- Только на русском языке.";
 
         return await GetAiResponseAsync(prompt) 
-               ?? "Мутаассифона, шарҳ дода натавонистам.";
+               ?? "К сожалению, не удалось получить объяснение.";
     }
 
     public async Task<string> GetMotivationAsync(string question, string answer)
     {
-        var prompt = $@"Барои ҷавоби дуруст ба саволи ""{question}"" як ҷумлаи кӯтоҳи рӯҳбаландкунанда нависед (бе салом).";
-        return await GetAiResponseAsync(prompt) ?? "Офарин! Давом диҳед.";
+        var prompt = $@"Напишите одну короткую мотивирующую фразу за правильный ответ на вопрос: ""{question}"" (без приветствий, на русском).";
+        return await GetAiResponseAsync(prompt) ?? "Молодец! Так держать.";
+    }
+
+    public async Task<string> GetDashboardMotivationAsync()
+    {
+        var prompt = @"Напишите одну вдохновляющую цитату или мотивирующее высказывание известного ученого или успешного человека (современного или классика).
+- На русском языке.
+- Без вступлений, только цитата и автор.
+- Чтобы вдохновляло студентов на учебу.";
+        
+        return await GetAiResponseAsync(prompt) ?? "Знание — сила.";
     }
 
     public async Task<string> AnalyzeTestResultAsync(int totalScore, int totalQuestions, List<(string Question, bool IsCorrect)> summary)
     {
-        var resultsText = string.Join("\n", summary.Take(10).Select(s => $"- {s.Question}: {(s.IsCorrect ? "Дуруст" : "Хато")}"));
-        var prompt = $"Таҳлили кӯтоҳи натиҷаҳо ({totalScore} аз {totalQuestions}). 3 маслиҳати муҳим диҳед. Бе салом. Танҳо тоҷикӣ.";
+        var resultsText = string.Join("\n", summary.Take(10).Select(s => $"- {s.Question}: {(s.IsCorrect ? "Верно" : "Ошибка")}"));
+        var prompt = $"Краткий анализ результатов ({totalScore} из {totalQuestions}). 3 важных совета. Без приветствий. Только на русском.";
         
-        return await GetAiResponseAsync(prompt) ?? "Таҳлил дастнорас аст.";
+        return await GetAiResponseAsync(prompt) ?? "Анализ недоступен.";
     }
 
     private async Task<string?> GetAiResponseAsync(string prompt)
@@ -76,7 +86,6 @@ public class GoogleGeminiAiService : IAiService
         var sw = Stopwatch.StartNew();
         int retryDelay = InitialRetryDelayMs;
 
-        // URL-и дуруст бе нуқта-асл (./)
         var url = $"models/{_model}:generateContent?key={_apiKey}";
 
         for (int attempt = 0; attempt < MaxRetries; attempt++)
