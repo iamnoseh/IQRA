@@ -43,31 +43,30 @@ public class GoogleGeminiAiService : IAiService
     public async Task<string> GetExplanationAsync(string question, string correctAnswer, string chosenAnswer)
     {
         var prompt = $@"
-Шумо як донишманди тоҷик ва омӯзгори меҳрубон ҳастед. Корбар ба саволи зерин ҷавоби нодуруст дод.
 Савол: ""{question}""
-Ҷавоби интихобшуда: ""{chosenAnswer}""
+Ҷавоби интихобшуда (Хато): ""{chosenAnswer}""
 Ҷавоби дуруст: ""{correctAnswer}""
 
-Вазифаи шумо:
-1. Фаҳмонед, ки чаро ҷавоби интихобшуда хато аст.
-2. Маъно ва моҳияти ҷавоби дурустро пурра шарҳ диҳед.
-3. Як факти ҷолиб илова кунед.
-4. Танҳо ба забони тоҷикӣ нависед.";
+Вазифа:
+Кӯтоҳ ва фаҳмо шарҳ диҳед, ки чаро ҷавоби интихобшуда хато аст ва ҷавоби дуруст чист.
+- Бе салом ва муқаддима.
+- Ҳадди аксар 3 ҷумла бошад.
+- Танҳо ба забони тоҷикӣ.";
 
         return await GetAiResponseAsync(prompt) 
-               ?? "Мутаассифона, шарҳ дода натавонистам. Кӯшиши шумо шоистаи таҳсин аст!";
+               ?? "Мутаассифона, шарҳ дода натавонистам.";
     }
 
     public async Task<string> GetMotivationAsync(string question, string answer)
     {
-        var prompt = $@"Шумо мураббии муваффақият ҳастед. Табрик кунед барои ҷавоби дуруст ба: ""{question}""";
+        var prompt = $@"Барои ҷавоби дуруст ба саволи ""{question}"" як ҷумлаи кӯтоҳи рӯҳбаландкунанда нависед (бе салом).";
         return await GetAiResponseAsync(prompt) ?? "Офарин! Давом диҳед.";
     }
 
     public async Task<string> AnalyzeTestResultAsync(int totalScore, int totalQuestions, List<(string Question, bool IsCorrect)> summary)
     {
         var resultsText = string.Join("\n", summary.Take(10).Select(s => $"- {s.Question}: {(s.IsCorrect ? "Дуруст" : "Хато")}"));
-        var prompt = $"Таҳлили натиҷаҳо: {totalScore} аз {totalQuestions}. Маълумот:\n{resultsText}\nТанҳо ба тоҷикӣ тавсия диҳед.";
+        var prompt = $"Таҳлили кӯтоҳи натиҷаҳо ({totalScore} аз {totalQuestions}). 3 маслиҳати муҳим диҳед. Бе салом. Танҳо тоҷикӣ.";
         
         return await GetAiResponseAsync(prompt) ?? "Таҳлил дастнорас аст.";
     }
@@ -93,7 +92,7 @@ public class GoogleGeminiAiService : IAiService
                     generationConfig = new
                     {
                         temperature = 0.7,
-                        maxOutputTokens = 1000
+                        maxOutputTokens = 2000
                     }
                 };
 

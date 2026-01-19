@@ -23,7 +23,7 @@ public static class ServiceExtensions
         services.AddScoped<IAiService, GoogleGeminiAiService>();
         services.AddHttpClient<IAiService, GoogleGeminiAiService>(client =>
         {
-            client.BaseAddress = new Uri(configuration["GoogleGemini:BaseUrl"] ?? "https://generativelanguage.googleapis.com/v1beta/models/");
+            client.BaseAddress = new Uri(configuration["GoogleGemini:BaseUrl"] ?? "https://generativelanguage.googleapis.com/v1beta/");
         });
         
         return services;
