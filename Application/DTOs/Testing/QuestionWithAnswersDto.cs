@@ -12,6 +12,10 @@ public class QuestionWithAnswersDto
     public Domain.Enums.QuestionType Type { get; set; }
     public List<AnswerOptionDto> Answers { get; set; } = new();
     public List<string> MatchOptions { get; set; } = new();
+    
+    // Red List Info
+    public bool IsInRedList { get; set; }
+    public int RedListCorrectCount { get; set; }
 }
 
 public class AnswerOptionDto

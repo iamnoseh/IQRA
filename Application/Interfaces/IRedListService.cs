@@ -9,4 +9,5 @@ public interface IRedListService
     Task<Response<List<RedListQuestionDto>>> GetRedListAsync(Guid userId);
     Task<Response<RedListPracticeFeedbackDto>> SubmitPracticeAnswerAsync(Guid userId, SubmitRedListAnswerRequest request);
     Task<Response<int>> GetRedListCountAsync(Guid userId);
+    Task ProcessAnswerAsync(Guid userId, long questionId, bool isCorrect);
 }

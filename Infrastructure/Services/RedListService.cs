@@ -131,4 +131,52 @@ public class RedListService(ApplicationDbContext context) : IRedListService
         var count = await context.RedListQuestions.CountAsync(rl => rl.UserId == userId);
         return new Response<int>(count);
     }
+
+    public async Task ProcessAnswerAsync(Guid userId, long questionId, bool isCorrect)
+    {
+        var redListEntry = await context.RedListQuestions
+            .FirstOrDefaultAsync(rl => rl.UserId == userId && rl.QuestionId == questionId);
+
+        if (redListEntry != null)
+        {
+            // Already in Red List
+            redListEntry.LastPracticedAt = DateTime.UtcNow;
+            
+            if (isCorrect)
+            {
+                redListEntry.ConsecutiveCorrectCount++;
+                if (redListEntry.ConsecutiveCorrectCount >= 3)
+                {
+                    // Graduation! Remove from Red List
+                    context.RedListQuestions.Remove(redListEntry);
+                    
+                    // Award bonus XP (optional hook)
+                    var profile = await context.UserProfiles.FirstOrDefaultAsync(p => p.UserId == userId);
+                    if (profile != null)
+                    {
+                        profile.XP += 50;
+                    }
+                }
+            }
+            else
+            {
+                // Reset progress on failure
+                redListEntry.ConsecutiveCorrectCount = 0;
+            }
+        }
+        else if (!isCorrect)
+        {
+            // Not in Red List, and answered incorrectly -> Add to Red List
+            var newEntry = new RedListQuestion
+            {
+                UserId = userId,
+                QuestionId = questionId,
+                ConsecutiveCorrectCount = 0,
+                AddedAt = DateTime.UtcNow
+            };
+            context.RedListQuestions.Add(newEntry);
+        }
+
+        await context.SaveChangesAsync();
+    }
 }
