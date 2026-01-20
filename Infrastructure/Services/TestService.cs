@@ -10,7 +10,13 @@ using System.Text.Json;
 
 namespace Infrastructure.Services;
 
-public class TestService(ApplicationDbContext context, IQuestionService questionService, IAiService aiService, IRedListService redListService) : ITestService
+public class TestService(
+    ApplicationDbContext context, 
+    IQuestionService questionService, 
+    IAiService aiService, 
+    IRedListService redListService,
+    IScoringService scoringService,
+    IGamificationService gamificationService) : ITestService
 {
     public async Task<Response<Guid>> StartTestAsync(Guid userId, StartTestRequest request)
     {
@@ -249,34 +255,52 @@ public class TestService(ApplicationDbContext context, IQuestionService question
 
         session.FinishedAt = DateTime.UtcNow;
         session.IsCompleted = true;
-        session.TotalScore = session.Answers.Count(a => a.IsCorrect);
-
-        await context.SaveChangesAsync();
 
         var questionIds = session.Answers.Select(a => a.QuestionId).ToList();
         var questions = await context.Questions
             .Where(q => questionIds.Contains(q.Id))
-            .ToDictionaryAsync(q => q.Id, q => q.Content);
+            .ToListAsync();
+
+        int totalScore = 0;
+        int maxPossibleScore = 0;
+
+        foreach (var answer in session.Answers)
+        {
+            var question = questions.FirstOrDefault(q => q.Id == answer.QuestionId);
+            if (question != null)
+            {
+                totalScore += scoringService.CalculateQuestionScore(question, answer);
+                maxPossibleScore += scoringService.GetMaxScoreForQuestion(question);
+            }
+        }
+
+        session.TotalScore = totalScore;
+
+        int xpEarned = await gamificationService.ProcessTestSessionEndAsync(userId, session);
+
+        await context.SaveChangesAsync();
+
+        var questionContents = questions.ToDictionary(q => q.Id, q => q.Content);
 
         var summary = session.Answers.Select(a => (
-            Question: questions.GetValueOrDefault(a.QuestionId) ?? "Савол ёфт нашуд",
+            Question: questionContents.GetValueOrDefault(a.QuestionId) ?? "Савол ёфт нашуд",
             IsCorrect: a.IsCorrect
         )).ToList();
 
         var aiAnalysis = await aiService.AnalyzeTestResultAsync(session.TotalScore, questionIds.Count, summary);
 
         var totalQuestions = session.Answers.Count;
-        var percentage = totalQuestions > 0 ? (double)session.TotalScore / totalQuestions * 100 : 0;
+        var percentage = maxPossibleScore > 0 ? (double)totalScore / maxPossibleScore * 100 : 0;
 
         var result = new TestResultDto
         {
             TestSessionId = testSessionId,
-            TotalScore = session.TotalScore,
+            TotalScore = totalScore,
             CorrectAnswers = session.Answers.Count(a => a.IsCorrect),
             TotalQuestions = totalQuestions,
             Percentage = percentage,
             IsPassed = percentage >= 60,
-            XPEarned = session.TotalScore * 10,
+            XPEarned = xpEarned,
             AiAnalysis = aiAnalysis,
             Results = session.Answers.Select(a => new QuestionResultDto
             {

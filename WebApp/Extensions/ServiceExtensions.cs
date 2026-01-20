@@ -22,6 +22,10 @@ public static class ServiceExtensions
         services.AddScoped<IReferenceService, ReferenceService>();
         services.AddScoped<IAiService, GoogleGeminiAiService>();
         services.AddScoped<IRedListService, RedListService>();
+        
+        services.AddScoped<IScoringService, ScoringService>();
+        services.AddScoped<IGamificationService, GamificationService>();
+        
         services.AddHttpClient<IAiService, GoogleGeminiAiService>(client =>
         {
             client.BaseAddress = new Uri(configuration["GoogleGemini:BaseUrl"] ?? "https://generativelanguage.googleapis.com/v1beta/");
