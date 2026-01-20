@@ -10,7 +10,7 @@ using System.Text.Json;
 
 namespace Infrastructure.Services;
 
-public class TestService(ApplicationDbContext context, IQuestionService questionService, IAiService aiService) : ITestService
+public class TestService(ApplicationDbContext context, IQuestionService questionService, IAiService aiService, IRedListService redListService) : ITestService
 {
     public async Task<Response<Guid>> StartTestAsync(Guid userId, StartTestRequest request)
     {
@@ -203,6 +203,11 @@ public class TestService(ApplicationDbContext context, IQuestionService question
 
         context.UserAnswers.Add(userAnswer);
         await context.SaveChangesAsync();
+
+        if (!isCorrect)
+        {
+            await redListService.AddToRedListAsync(userId, request.QuestionId);
+        }
 
         string feedbackText = string.Empty;
         if (request.RequestAiFeedback)

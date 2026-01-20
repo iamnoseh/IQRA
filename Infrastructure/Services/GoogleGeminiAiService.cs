@@ -70,7 +70,7 @@ public class GoogleGeminiAiService : IAiService
 - Без вступлений, только цитата и автор.
 - Чтобы вдохновляло студентов на учебу.";
         
-        return await GetAiResponseAsync(prompt) ?? "Знание — сила.";
+        return await GetAiResponseAsync(prompt) ?? "Знание — это единственное сокровище, которое растёт, когда им делятся";
     }
 
     public async Task<string> AnalyzeTestResultAsync(int totalScore, int totalQuestions, List<(string Question, bool IsCorrect)> summary)

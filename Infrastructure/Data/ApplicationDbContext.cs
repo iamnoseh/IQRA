@@ -34,6 +34,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<Faculty> Faculties { get; set; }
     public DbSet<Major> Majors { get; set; }
     public DbSet<ClusterDefinition> ClusterDefinitions { get; set; }
+    public DbSet<RedListQuestion> RedListQuestions { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -173,6 +174,24 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
                 .OnDelete(DeleteBehavior.SetNull);
 
             entity.Property(ua => ua.TimeSpentSeconds).HasDefaultValue(0);
+        });
+
+        modelBuilder.Entity<RedListQuestion>(entity =>
+        {
+            entity.HasKey(rl => rl.Id);
+            entity.HasOne(rl => rl.User)
+                .WithMany()
+                .HasForeignKey(rl => rl.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(rl => rl.Question)
+                .WithMany()
+                .HasForeignKey(rl => rl.QuestionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.Property(rl => rl.ConsecutiveCorrectCount).HasDefaultValue(0);
+            entity.Property(rl => rl.AddedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.HasIndex(rl => new { rl.UserId, rl.QuestionId }).IsUnique();
         });
     }
 
