@@ -88,9 +88,6 @@ public class TestService(ApplicationDbContext context, IQuestionService question
                 Topic = q.Topic,
                 Difficulty = q.Difficulty,
                 Type = q.Type,
-                // We need to fetch RedList status here too if possible, but GetTestQuestionsAsync already does it for creation.
-                // However, GetTestQuestionsAsync returns DTOs, but here we are fetching from DB based on IDs stored in JSON.
-                // So we need to populate IsInRedList for 'GetTestQuestionsAsync' (the endpoint one).
                 Answers = q.Answers.Select(a => new AnswerOptionDto 
                 { 
                     Id = a.Id, 
@@ -100,9 +97,6 @@ public class TestService(ApplicationDbContext context, IQuestionService question
             })
             .ToListAsync();
 
-            .ToListAsync();
-
-        // Populate Red List Info
         var userRedList = await context.RedListQuestions
             .Where(rl => rl.UserId == session.UserId && questionIds.Contains(rl.QuestionId))
             .ToDictionaryAsync(rl => rl.QuestionId, rl => rl.ConsecutiveCorrectCount);
@@ -220,7 +214,6 @@ public class TestService(ApplicationDbContext context, IQuestionService question
         context.UserAnswers.Add(userAnswer);
         await context.SaveChangesAsync();
 
-        // New Logic: Centralized Red List Processing
         await redListService.ProcessAnswerAsync(userId, request.QuestionId, isCorrect);
 
         string feedbackText = string.Empty;

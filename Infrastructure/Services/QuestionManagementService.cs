@@ -205,7 +205,6 @@ public class QuestionManagementService(ApplicationDbContext context, IFileStorag
                 {
                     var answer = new AnswerImportDto
                     {
-                        // Support both 'text' and 'answer' field names
                         Text = element.TryGetProperty("text", out var textProp) ? textProp.GetString() ?? ""
                              : element.TryGetProperty("answer", out var answerProp) ? answerProp.GetString() ?? ""
                              : "",
@@ -221,7 +220,6 @@ public class QuestionManagementService(ApplicationDbContext context, IFileStorag
             }
         }
 
-        // Convert CreateQuestionRequest to QuestionImportDto
         var dto = new QuestionImportDto
         {
             SubjectId = request.SubjectId,
@@ -234,7 +232,6 @@ public class QuestionManagementService(ApplicationDbContext context, IFileStorag
             CorrectAnswer = request.CorrectAnswer
         };
 
-        // Upload image if provided
         if (request.Image != null)
         {
             dto.ImageUrl = await fileStorageService.SaveFileAsync(request.Image, "uploads/questions");
@@ -277,7 +274,6 @@ public class QuestionManagementService(ApplicationDbContext context, IFileStorag
 
         List<AnswerImportDto>? answers = request.Answers;
         
-        // If AnswersJson is provided, parse it
         if (!string.IsNullOrWhiteSpace(request.AnswersJson))
         {
             try
@@ -317,7 +313,6 @@ public class QuestionManagementService(ApplicationDbContext context, IFileStorag
             CorrectAnswer = request.CorrectAnswer
         };
 
-        // Upload image if provided
         if (request.Image != null)
         {
             dto.ImageUrl = await fileStorageService.SaveFileAsync(request.Image, "uploads/questions");
@@ -429,8 +424,6 @@ public class QuestionManagementService(ApplicationDbContext context, IFileStorag
 
     public async Task<Response<List<QuestionDto>>> GetQuestionsByTopicAsync(int topicId, int page, int pageSize)
     {
-        // Topic is now a string field, this method is kept for backwards compatibility
-        // but will return empty list since topicId doesn't make sense anymore
         return new Response<List<QuestionDto>>(new List<QuestionDto>());
     }
 
@@ -497,7 +490,6 @@ public class QuestionManagementService(ApplicationDbContext context, IFileStorag
             .Include(q => q.Subject)
             .AsQueryable();
 
-        // Apply filters
         if (filter.SubjectId.HasValue)
             query = query.Where(q => q.SubjectId == filter.SubjectId.Value);
 
@@ -530,7 +522,6 @@ public class QuestionManagementService(ApplicationDbContext context, IFileStorag
                 : query.OrderBy(q => q.CreatedAt)
         };
 
-        // Apply pagination
         var items = await query
             .Skip((filter.Page - 1) * filter.PageSize)
             .Take(filter.PageSize)

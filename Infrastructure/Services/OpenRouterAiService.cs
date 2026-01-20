@@ -26,7 +26,6 @@ public class OpenRouterAiService : IAiService
         _apiKey = configuration["OpenRouter:ApiKey"]!;
         _model = configuration["OpenRouter:Model"] ?? "google/learnlm-1.5-pro-experimental:free";
         
-        // Configure timeout
         _httpClient.Timeout = TimeSpan.FromSeconds(120);
     }
 
@@ -123,7 +122,6 @@ public class OpenRouterAiService : IAiService
                         }
                     }
                     
-                    // Rate limit error (429) - don't retry immediately
                     if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
                     {
                         _logger.LogError("Rate limit exceeded. Please add credits or wait until reset time.");
@@ -136,7 +134,6 @@ public class OpenRouterAiService : IAiService
                         return null;
                     }
                     
-                    // Retry on 5xx errors (server errors)
                     if (attempt < MaxRetries - 1)
                     {
                         _logger.LogWarning($"Retrying after {retryDelay}ms...");

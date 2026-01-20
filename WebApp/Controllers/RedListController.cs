@@ -22,6 +22,16 @@ public class RedListController(IRedListService redListService) : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("dashboard")]
+    public async Task<ActionResult<Response<RedListDashboardDto>>> GetRedListDashboard([FromQuery] int? subjectId)
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized();
+        
+        var result = await redListService.GetRedListDashboardAsync(userId.Value, subjectId);
+        return Ok(result);
+    }
+
     [HttpGet("count")]
     public async Task<ActionResult<Response<int>>> GetRedListCount()
     {

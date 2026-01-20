@@ -32,7 +32,6 @@ public class GoogleGeminiAiService : IAiService
         
         _baseUrl = configuration["GoogleGemini:BaseUrl"] ?? "https://generativelanguage.googleapis.com/v1beta/";
 
-        // Танзими HttpClient
         if (_httpClient.BaseAddress == null)
         {
             _httpClient.BaseAddress = new Uri(_baseUrl);

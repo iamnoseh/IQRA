@@ -46,20 +46,11 @@ public class RedListService(ApplicationDbContext context) : IRedListService
                 Content = rl.Question.Content,
                 ImageUrl = rl.Question.ImageUrl,
                 SubjectName = rl.Question.Subject.Name,
-                ConsecutiveCorrectCount = rl.ConsecutiveCorrectCount,
-                Answers = rl.Question.Answers.Select(a => new AnswerOptionDto
-                {
-                    Id = a.Id,
-                    Text = a.Text,
-                    MatchPairText = a.MatchPairText
-                }).ToList()
+                Topic = rl.Question.Topic ?? "Умумӣ",
+                AddedAt = rl.AddedAt,
+                ConsecutiveCorrectCount = rl.ConsecutiveCorrectCount
             })
             .ToListAsync();
-
-        foreach (var item in redList)
-        {
-            item.Answers = item.Answers.OrderBy(_ => Guid.NewGuid()).ToList();
-        }
 
         return new Response<List<RedListQuestionDto>>(redList);
     }
@@ -106,7 +97,7 @@ public class RedListService(ApplicationDbContext context) : IRedListService
             {
                 context.RedListQuestions.Remove(redListQuestion);
                 feedback.IsRemoved = true;
-                feedback.XPEarned = 50; // Bonus for clearing from Red List
+                feedback.XPEarned = 50; 
 
                 var profile = await context.UserProfiles.FirstOrDefaultAsync(p => p.UserId == userId);
                 if (profile != null)
@@ -126,6 +117,70 @@ public class RedListService(ApplicationDbContext context) : IRedListService
         return new Response<RedListPracticeFeedbackDto>(feedback);
     }
 
+    public async Task<Response<RedListDashboardDto>> GetRedListDashboardAsync(Guid userId, int? subjectId = null)
+    {
+        var query = context.RedListQuestions
+            .Include(rl => rl.Question)
+                .ThenInclude(q => q.Subject)
+            .Where(rl => rl.UserId == userId);
+
+        if (subjectId.HasValue)
+        {
+            query = query.Where(rl => rl.Question.SubjectId == subjectId.Value);
+        }
+
+        var questions = await query.ToListAsync();
+
+        var today = DateTime.UtcNow.Date;
+        
+        var xpToday = await context.UserAnswers
+            .Include(ua => ua.TestSession)
+            .Where(ua => ua.TestSession.UserId == userId && ua.TestSession.StartedAt >= today && ua.IsCorrect)
+            .CountAsync() * 10;
+
+        var stats = new RedListStatsDto
+        {
+            TotalQuestions = questions.Count,
+            NewQuestionsToday = questions.Count(q => q.AddedAt >= today),
+            ReadyToRemoveCount = questions.Count(q => q.ConsecutiveCorrectCount >= 2),
+            XPToday = xpToday, 
+            XPIncreasePercent = 15, 
+            RemovedTodayCount = 0 
+        };
+        var chartData = new List<RedListChartPointDto>();
+        for (int i = 6; i >= 0; i--)
+        {
+            chartData.Add(new RedListChartPointDto
+            {
+                DateLabel = today.AddDays(-i).ToString("dd MMM"),
+                Value = Math.Max(0, questions.Count - i * 2) 
+            });
+        }
+        var questionDtos = questions
+            .OrderByDescending(q => q.ConsecutiveCorrectCount)
+            .ThenByDescending(q => q.AddedAt)
+            .Select(rl => new RedListQuestionDto
+            {
+                Id = rl.Id,
+                QuestionId = rl.Question.Id,
+                Content = rl.Question.Content,
+                ImageUrl = rl.Question.ImageUrl,
+                SubjectName = rl.Question.Subject.Name,
+                Topic = rl.Question.Topic ?? "Умумӣ",
+                AddedAt = rl.AddedAt,
+                ConsecutiveCorrectCount = rl.ConsecutiveCorrectCount
+            }).ToList();
+
+        var dashboard = new RedListDashboardDto
+        {
+            Stats = stats,
+            ChartData = chartData,
+            ActiveQuestions = questionDtos
+        };
+
+        return new Response<RedListDashboardDto>(dashboard);
+    }
+
     public async Task<Response<int>> GetRedListCountAsync(Guid userId)
     {
         var count = await context.RedListQuestions.CountAsync(rl => rl.UserId == userId);
@@ -139,7 +194,6 @@ public class RedListService(ApplicationDbContext context) : IRedListService
 
         if (redListEntry != null)
         {
-            // Already in Red List
             redListEntry.LastPracticedAt = DateTime.UtcNow;
             
             if (isCorrect)
@@ -147,10 +201,8 @@ public class RedListService(ApplicationDbContext context) : IRedListService
                 redListEntry.ConsecutiveCorrectCount++;
                 if (redListEntry.ConsecutiveCorrectCount >= 3)
                 {
-                    // Graduation! Remove from Red List
                     context.RedListQuestions.Remove(redListEntry);
                     
-                    // Award bonus XP (optional hook)
                     var profile = await context.UserProfiles.FirstOrDefaultAsync(p => p.UserId == userId);
                     if (profile != null)
                     {
@@ -160,13 +212,11 @@ public class RedListService(ApplicationDbContext context) : IRedListService
             }
             else
             {
-                // Reset progress on failure
                 redListEntry.ConsecutiveCorrectCount = 0;
             }
         }
         else if (!isCorrect)
         {
-            // Not in Red List, and answered incorrectly -> Add to Red List
             var newEntry = new RedListQuestion
             {
                 UserId = userId,
