@@ -23,7 +23,8 @@ public class AuthService(
     ISmsService smsService,
     IHttpContextAccessor httpContextAccessor,
     IConfiguration configuration,
-    ILogger<AuthService> logger) : IAuthService
+    ILogger<AuthService> logger,
+    IUserService userService) : IAuthService
 {
     private const int OtpExpirationMinutes = 3;
     private const int ResetTokenExpirationMinutes = 10;
@@ -43,6 +44,8 @@ public class AuthService(
             return CreateErrorResponse(Messages.Auth.InvalidCredentials);
 
         var token = jwtService.GenerateToken(user);
+
+        await userService.RecordLoginActivityAsync(user.Id);
 
         logger.LogInformation("User {Username} logged in successfully", loginDto.Username);
 
@@ -114,6 +117,8 @@ public class AuthService(
         await smsService.SendSmsAsync(normalizedPhone, message);
 
         var token = jwtService.GenerateToken(user);
+
+        await userService.RecordLoginActivityAsync(user.Id);
 
         logger.LogInformation("User {PhoneNumber} registered successfully", request.PhoneNumber);
 

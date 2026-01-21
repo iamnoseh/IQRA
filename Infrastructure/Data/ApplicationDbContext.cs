@@ -35,6 +35,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<Major> Majors { get; set; }
     public DbSet<ClusterDefinition> ClusterDefinitions { get; set; }
     public DbSet<RedListQuestion> RedListQuestions { get; set; }
+    public DbSet<UserLoginActivity> UserLoginActivities { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -80,6 +81,18 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
             entity.Property(p => p.XP).HasDefaultValue(0);
             entity.HasIndex(p => p.UserId).IsUnique();
+        });
+
+        modelBuilder.Entity<UserLoginActivity>(entity =>
+        {
+            entity.HasKey(a => a.Id);
+            entity.HasOne(a => a.User)
+                .WithMany()
+                .HasForeignKey(a => a.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(a => new { a.UserId, a.LoginDate });
+            entity.Property(a => a.LoginDate).HasDefaultValueSql("CURRENT_TIMESTAMP");
         });
     }
 

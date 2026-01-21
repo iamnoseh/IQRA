@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Services;
 
-public class UserService(
+public partial class UserService(
     ApplicationDbContext context,
     UserManager<AppUser> userManager,
     IFileStorageService fileStorageService) : IUserService

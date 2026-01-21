@@ -54,4 +54,20 @@ public class UserController(IUserService userService) : ControllerBase
 
         return Ok(new { message = "Профил дарёфт шуд", data = result.Data });
     }
+
+    [HttpGet("activity")]
+    public async Task<IActionResult> GetActivity()
+    {
+        var userIdClaim = User.FindFirst("UserId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        
+        if (string.IsNullOrWhiteSpace(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+            return Unauthorized(new { message = "Корбар муайян карда нашуд" });
+
+        var result = await userService.GetUserActivityAsync(userId);
+        
+        if (!result.Success)
+            return NotFound(new { message = result.Message });
+
+        return Ok(new { message = "Активияти корбар дарёфт шуд", data = result.Data });
+    }
 }
