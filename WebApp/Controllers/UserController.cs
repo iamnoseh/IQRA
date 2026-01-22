@@ -70,4 +70,39 @@ public class UserController(IUserService userService) : ControllerBase
 
         return Ok(new { message = "Активияти корбар дарёфт шуд", data = result.Data });
     }
+
+    [HttpGet("test-activity")]
+    public async Task<IActionResult> GetTestActivity([FromQuery] int days = 30)
+    {
+        var userIdClaim = User.FindFirst("UserId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        
+        if (string.IsNullOrWhiteSpace(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+            return Unauthorized(new { message = "Корбар муайян карда нашуд" });
+
+        var result = await userService.GetTestActivityAsync(userId, days);
+        
+        if (!result.Success)
+            return NotFound(new { message = result.Message });
+
+        return Ok(new { message = "Статистикаи тестҳо дарёфт шуд", data = result.Data });
+    }
+
+    [HttpGet("notifications")]
+    public async Task<IActionResult> GetNotifications([FromServices] INotificationService notificationService)
+    {
+        var userIdClaim = User.FindFirst("UserId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        
+        if (string.IsNullOrWhiteSpace(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+            return Unauthorized(new { message = "Корбар муайян карда нашуд" });
+
+        var result = await notificationService.GetUserNotificationsAsync(userId);
+        return Ok(result);
+    }
+
+    [HttpPost("notifications/{id}/read")]
+    public async Task<IActionResult> MarkNotificationAsRead(Guid id, [FromServices] INotificationService notificationService)
+    {
+        var result = await notificationService.MarkAsReadAsync(id);
+        return Ok(result);
+    }
 }

@@ -23,9 +23,13 @@ public class UserProfile
     public int? TargetPassingScore { get; set; }
     
     public int XP { get; set; }
+    public int WeeklyXP { get; set; }
+    public int DiamondWinStreak { get; set; }
+    public string UnlockedBadgesJson { get; set; } = "[]";
+    public int DailyStreak { get; set; }
     public string? AvatarUrl { get; set; }
     public int EloRating { get; set; } = 1000;
-    public int? CurrentLeagueId { get; set; }
+    public int? CurrentLeagueId { get; set; } = 1;
     public DateTime? LastTestDate { get; set; }
     
     public AppUser User { get; set; } = null!;

@@ -11,4 +11,5 @@ public interface IUserService
     Task<Response<UserProfileDto>> GetProfileByUsernameAsync(string username);
     Task<Response<UserActivityDto>> GetUserActivityAsync(Guid userId);
     Task RecordLoginActivityAsync(Guid userId);
+    Task<Response<TestActivityStatsDto>> GetTestActivityAsync(Guid userId, int days = 30);
 }

@@ -1,7 +1,11 @@
+using Application.Interfaces;
 using Domain.Entities.Users;
 using Infrastructure.Data;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
+using Hangfire;
+using Hangfire.PostgreSql;
 using Swashbuckle.AspNetCore.SwaggerGen;
 using WebApp.Extensions;
 using WebApp.Middleware;
@@ -43,6 +47,7 @@ using (var scope = app.Services.CreateScope())
 
     try
     {
+        await context.Database.MigrateAsync();
         await SeedData.SeedAsync(context, userManager);
     }
     catch (Exception ex)
@@ -72,6 +77,15 @@ app.UseStaticFiles();
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.UseHangfireDashboard();
+
+// Weekly League Reset (Every Sunday at 23:59)
+RecurringJob.AddOrUpdate<ILeagueService>(
+    "weekly-league-processing",
+    service => service.ProcessWeeklyLeaguesAsync(),
+    Cron.Weekly(DayOfWeek.Sunday, 23, 59)
+);
 
 app.MapControllers();
 

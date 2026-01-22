@@ -127,4 +127,56 @@ public partial class UserService
 
         return longestStreak;
     }
+
+    public async Task<Response<TestActivityStatsDto>> GetTestActivityAsync(Guid userId, int days = 30)
+    {
+        var user = await context.Users.FindAsync(userId);
+        if (user == null)
+            return new Response<TestActivityStatsDto>(HttpStatusCode.NotFound, "Корбар ёфт нашуд");
+
+        if (days != 30 && days != 60 && days != 90)
+            days = 30;
+
+        var endDate = DateTime.UtcNow.Date;
+        var startDate = endDate.AddDays(-(days - 1));
+
+        var sessions = await context.TestSessions
+            .Include(s => s.Answers)
+            .Where(s => s.UserId == userId && s.StartedAt >= startDate && s.StartedAt <= endDate.AddDays(1))
+            .ToListAsync();
+
+        var dailyStats = new List<DailyTestCountDto>();
+        var totalCorrectAnswers = 0;
+        var totalAnswers = 0;
+
+        for (int i = 0; i < days; i++)
+        {
+            var date = startDate.AddDays(i);
+            
+            var daysSessions = sessions.Where(s => s.StartedAt.Date == date).ToList();
+            
+            var dayCorrect = daysSessions.Sum(s => s.Answers.Count(a => a.IsCorrect));
+            var dayTotal = daysSessions.Sum(s => s.Answers.Count);
+            
+            totalCorrectAnswers += dayCorrect;
+            totalAnswers += dayTotal;
+
+            dailyStats.Add(new DailyTestCountDto
+            {
+                Date = date,
+                TotalAnswers = dayTotal,
+                CorrectAnswers = dayCorrect,
+                IncorrectAnswers = dayTotal - dayCorrect
+            });
+        }
+
+        var result = new TestActivityStatsDto
+        {
+            TotalTests = sessions.Count,
+            OverallCorrectPercentage = totalAnswers > 0 ? Math.Round((double)totalCorrectAnswers / totalAnswers * 100, 1) : 0,
+            DailyStats = dailyStats
+        };
+
+        return new Response<TestActivityStatsDto>(result);
+    }
 }

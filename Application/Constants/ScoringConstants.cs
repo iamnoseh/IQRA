@@ -21,6 +21,6 @@ public static class ScoringConstants
     public const int EloWin = 25;
     public const int EloLoss = 15;
 
-    public const double LeaguePromotionPercent = 0.20;
-    public const double LeagueRelegationPercent = 0.20;
+    public const double LeaguePromotionPercent = 0.15;
+    public const double LeagueRelegationPercent = 0.15;
 }

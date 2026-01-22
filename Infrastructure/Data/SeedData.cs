@@ -1,6 +1,7 @@
 using Domain.Entities.Reference;
 using Domain.Entities.Testing;
 using Domain.Entities.Users;
+using Domain.Entities.Gamification;
 using Domain.Enums;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -23,14 +24,19 @@ public static class SeedData
         if (!await context.TestTemplates.AnyAsync())
             await SeedTestTemplates(context);
 
+        if (!await context.Leagues.AnyAsync())
+            await SeedLeagues(context);
+
         await SeedAdminAsync(context, userManager);
+
+        await AssignDefaultLeaguesAsync(context);
 
         await ResetSequencesAsync(context);
     }
 
     private static async Task ResetSequencesAsync(ApplicationDbContext context)
     {
-        var tables = new[] { "Schools", "Universities", "Faculties", "Majors", "ClusterDefinitions", "TestTemplates" };
+        var tables = new[] { "Schools", "Universities", "Faculties", "Majors", "ClusterDefinitions", "TestTemplates", "Leagues" };
         foreach (var table in tables)
         {
             // Use double quotes for table names in case they are reserved words or case-sensitive
@@ -306,5 +312,39 @@ public static class SeedData
 
         context.TestTemplates.AddRange(templates);
         await context.SaveChangesAsync();
+    }
+
+    private static async Task SeedLeagues(ApplicationDbContext context)
+    {
+        var leagues = new[]
+        {
+            new League { Id = 1, Name = "Bronze League", MinXP = 0, Color = "#CD7F32", PromotionThreshold = 0.15, RelegationThreshold = 0.0, BadgeUrl = "/assets/leagues/bronze.png" },
+            new League { Id = 2, Name = "Silver League", MinXP = 500, Color = "#C0C0C0", PromotionThreshold = 0.15, RelegationThreshold = 0.15, BadgeUrl = "/assets/leagues/silver.png" },
+            new League { Id = 3, Name = "Gold League", MinXP = 1500, Color = "#FFD700", PromotionThreshold = 0.15, RelegationThreshold = 0.15, BadgeUrl = "/assets/leagues/gold.png" },
+            new League { Id = 4, Name = "Platinum League", MinXP = 3000, Color = "#E5E4E2", PromotionThreshold = 0.15, RelegationThreshold = 0.15, BadgeUrl = "/assets/leagues/platinum.png" },
+            new League { Id = 5, Name = "Diamond League", MinXP = 6000, Color = "#B9F2FF", PromotionThreshold = 0.0, RelegationThreshold = 0.15, BadgeUrl = "/assets/leagues/diamond.png" }
+        };
+
+        context.Leagues.AddRange(leagues);
+        await context.SaveChangesAsync();
+        
+        Console.WriteLine("[Seed] ✓ 5 Leagues");
+    }
+
+    private static async Task AssignDefaultLeaguesAsync(ApplicationDbContext context)
+    {
+        var usersWithoutLeague = await context.UserProfiles
+            .Where(p => p.CurrentLeagueId == null)
+            .ToListAsync();
+
+        if (usersWithoutLeague.Any())
+        {
+            foreach (var user in usersWithoutLeague)
+            {
+                user.CurrentLeagueId = 1; 
+            }
+            await context.SaveChangesAsync();
+            Console.WriteLine($"[Seed] ✓ Assigned Bronze League to {usersWithoutLeague.Count} users");
+        }
     }
 }

@@ -1,6 +1,8 @@
 using Application.Interfaces;
 using Infrastructure.Services;
 using Microsoft.Extensions.Configuration;
+using Hangfire;
+using Hangfire.PostgreSql;
 
 namespace WebApp.Extensions;
 
@@ -25,12 +27,17 @@ public static class ServiceExtensions
         
         services.AddScoped<IScoringService, ScoringService>();
         services.AddScoped<IGamificationService, GamificationService>();
+        services.AddScoped<ILeagueService, LeagueService>();
+        services.AddScoped<INotificationService, NotificationService>();
         
         services.AddHttpClient<IAiService, GoogleGeminiAiService>(client =>
         {
             client.BaseAddress = new Uri(configuration["GoogleGemini:BaseUrl"] ?? "https://generativelanguage.googleapis.com/v1beta/");
         });
         
+        services.AddHangfire(x => x.UsePostgreSqlStorage(configuration.GetConnectionString("DefaultConnection")));
+        services.AddHangfireServer();
+
         return services;
     }
 }
