@@ -17,5 +17,6 @@ public class LeagueStandingDto
     public string? AvatarUrl { get; set; }
     public int WeeklyXP { get; set; }
     public int Rank { get; set; }
+    public string Trend { get; set; } = "STABLE"; // UP, DOWN, STABLE
     public bool IsCurrentUser { get; set; }
 }

@@ -36,4 +36,5 @@ public class UserProfile
     public Reference.School? School { get; set; }
     public Reference.Major? TargetMajor { get; set; }
     public Gamification.League? CurrentLeague { get; set; }
+    public int LastDayRank { get; set; } = 0;
 }

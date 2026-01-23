@@ -87,6 +87,13 @@ RecurringJob.AddOrUpdate<ILeagueService>(
     Cron.Weekly(DayOfWeek.Sunday, 23, 59)
 );
 
+// Daily Rank Snapshot (Every Day at 00:00)
+RecurringJob.AddOrUpdate<ILeagueService>(
+    "daily-rank-snapshot",
+    service => service.SnapshotDailyRanksAsync(),
+    Cron.Daily(0, 0)
+);
+
 app.MapControllers();
 
 app.Run();

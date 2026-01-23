@@ -5,11 +5,12 @@ using Application.Responses;
 using Application.Interfaces;
 using Infrastructure.Helpers;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using RestSharp;
 
 namespace Infrastructure.Services;
 
-public class OsonSmsService(IConfiguration configuration) : IOsonSmsService
+public class OsonSmsService(IConfiguration configuration, ILogger<OsonSmsService> logger) : IOsonSmsService
 {
     private readonly RestClient _restClient = new();
     private readonly string _login = configuration["OsonSmsSettings:Login"] ??
@@ -45,34 +46,28 @@ public class OsonSmsService(IConfiguration configuration) : IOsonSmsService
             request.AddParameter("str_hash", strHash);
             request.AddParameter("txn_id", txnId);
 
-            Console.WriteLine($"[OsonSms] Sending SMS to {phoneNumber}");
-            Console.WriteLine($"[OsonSms] URL: {_sendSmsUrl}");
-            Console.WriteLine($"[OsonSms] Login: {_login}, Sender: {_sender}");
-
+            logger.LogInformation("[OsonSms] Sending SMS to {PhoneNumber}", phoneNumber);
+            
             var response = await _restClient.ExecuteAsync<OsonSmsSendResponseDto>(request);
-
-            Console.WriteLine($"[OsonSms] Response StatusCode: {response.StatusCode}");
-            Console.WriteLine($"[OsonSms] Response Content: {response.Content}");
-            Console.WriteLine($"[OsonSms] Response ErrorMessage: {response.ErrorMessage}");
 
             if (response is { IsSuccessful: true, Data: not null })
             {
                 if (response.Data.Error != null)
                 {
-                    Console.WriteLine($"[OsonSms] API Error: {response.Data.Error.Message}");
+                    logger.LogError("[OsonSms] API Error: {ErrorMessage}", response.Data.Error.Message);
                     return new Response<OsonSmsSendResponseDto>(HttpStatusCode.BadRequest, response.Data.Error.Message);
                 }
 
-                Console.WriteLine($"[OsonSms] Success! MsgId: {response.Data.MsgId}");
+                logger.LogInformation("[OsonSms] Success! MsgId: {MsgId}", response.Data.MsgId);
                 return new Response<OsonSmsSendResponseDto>(response.Data) { Message = Messages.OsonSms.SendSuccess };
             }
 
+            logger.LogError("[OsonSms] HTTP Error: {StatusCode} {ErrorMessage}", response.StatusCode, response.ErrorMessage);
             return new Response<OsonSmsSendResponseDto>(response.StatusCode, response.ErrorMessage ?? Messages.OsonSms.SendError);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[OsonSms] Exception: {ex.Message}");
-            Console.WriteLine($"[OsonSms] StackTrace: {ex.StackTrace}");
+            logger.LogError(ex, "[OsonSms] Exception while sending SMS to {PhoneNumber}", phoneNumber);
             return new Response<OsonSmsSendResponseDto>(HttpStatusCode.InternalServerError, string.Format(Messages.OsonSms.Error, ex.Message));
         }
     }
@@ -105,6 +100,7 @@ public class OsonSmsService(IConfiguration configuration) : IOsonSmsService
         }
         catch (Exception ex)
         {
+            logger.LogError(ex, "[OsonSms] Exception checking status for MsgId {MsgId}", msgId);
             return new Response<OsonSmsStatusResponseDto>(HttpStatusCode.InternalServerError, string.Format(Messages.OsonSms.Error, ex.Message));
         }
     }
@@ -136,6 +132,7 @@ public class OsonSmsService(IConfiguration configuration) : IOsonSmsService
         }
         catch (Exception ex)
         {
+            logger.LogError(ex, "[OsonSms] Exception checking balance");
             return new Response<OsonSmsBalanceResponseDto>(HttpStatusCode.InternalServerError, string.Format(Messages.OsonSms.Error, ex.Message));
         }
     }

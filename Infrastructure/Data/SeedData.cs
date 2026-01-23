@@ -29,6 +29,8 @@ public static class SeedData
 
         await SeedAdminAsync(context, userManager);
 
+        await SeedGamificationAsync(context, userManager);
+
         await AssignDefaultLeaguesAsync(context);
 
         await ResetSequencesAsync(context);
@@ -39,7 +41,7 @@ public static class SeedData
         var tables = new[] { "Schools", "Universities", "Faculties", "Majors", "ClusterDefinitions", "TestTemplates", "Leagues" };
         foreach (var table in tables)
         {
-            // Use double quotes for table names in case they are reserved words or case-sensitive
+            
             await context.Database.ExecuteSqlRawAsync($"SELECT setval(pg_get_serial_sequence('\"{table}\"', 'Id'), COALESCE((SELECT MAX(\"Id\") FROM \"{table}\"), 1));");
         }
     }
@@ -346,5 +348,99 @@ public static class SeedData
             await context.SaveChangesAsync();
             Console.WriteLine($"[Seed] ✓ Assigned Bronze League to {usersWithoutLeague.Count} users");
         }
+    }
+
+    private static async Task SeedGamificationAsync(ApplicationDbContext context, UserManager<AppUser> userManager)
+    {
+        if (await context.UserProfiles.CountAsync() > 5) return; // Only seed if empty (apart from admin)
+
+        var random = new Random();
+        var users = new List<AppUser>();
+        var profiles = new List<UserProfile>();
+        var testUser = new AppUser { UserName = "user", PhoneNumber = "+992900000001", PhoneNumberConfirmed = true, Role = UserRole.Student, CreatedAt = DateTime.UtcNow, IsActive = true };
+        await userManager.CreateAsync(testUser, "User@123");
+        
+        var testProfile = new UserProfile
+        {
+            UserId = testUser.Id,
+            FirstName = "Test",
+            LastName = "User",
+            Gender = Gender.Male,
+            XP = 850,
+            WeeklyXP = 350,
+            CurrentLeagueId = 2, 
+            Province = "Душанбе",
+            District = "Шоҳмансур"
+        };
+        profiles.Add(testProfile);
+        
+        var diamondUser = new AppUser { UserName = "champion", PhoneNumber = "+992900000002", PhoneNumberConfirmed = true, Role = UserRole.Student, CreatedAt = DateTime.UtcNow, IsActive = true };
+        await userManager.CreateAsync(diamondUser, "User@123");
+
+        var diamondProfile = new UserProfile
+        {
+            UserId = diamondUser.Id,
+            FirstName = "Diamond",
+            LastName = "Champion",
+            Gender = Gender.Female,
+            XP = 15000,
+            WeeklyXP = 2500,
+            CurrentLeagueId = 5, // Diamond
+            DiamondWinStreak = 2, // Ready to win!
+            Province = "Хуҷанд",
+            District = "Марказ"
+        };
+        profiles.Add(diamondProfile);
+
+        // 3. Create 48 Random Users
+        var references = new[]
+        {
+            ("Ахмед", "Саидов"), ("Мадина", "Каримова"), ("Фарҳод", "Ҷураев"), ("Нигина", "Раҳимова"),
+            ("Далер", "Назаров"), ("Заррина", "Қосимова"), ("Рустам", "Ҳакимов"), ("Шаҳноза", "Юсупова"),
+            ("Искандар", "Мирзоев"), ("Гулноза", "Алиева")
+        };
+
+        for (int i = 0; i < 48; i++)
+        {
+            var (fn, ln) = references[random.Next(references.Length)];
+            var username = $"user{i + 3}";
+            var user = new AppUser { UserName = username, PhoneNumber = $"+9929000010{i:D2}", PhoneNumberConfirmed = true, Role = UserRole.Student, CreatedAt = DateTime.UtcNow, IsActive = true };
+            await userManager.CreateAsync(user, "User@123");
+
+            int leagueId = random.Next(1, 6); // 1-5
+            int xp = leagueId * 1000 + random.Next(0, 500);
+            
+            profiles.Add(new UserProfile
+            {
+                UserId = user.Id,
+                FirstName = fn,
+                LastName = $"{ln} {i}",
+                Gender = i % 2 == 0 ? Gender.Male : Gender.Female,
+                XP = xp,
+                WeeklyXP = random.Next(0, 1000),
+                CurrentLeagueId = leagueId,
+                Province = "Душанбе",
+                District = "Сино"
+            });
+        }
+
+        context.UserProfiles.AddRange(profiles);
+        await context.SaveChangesAsync();
+        
+        var leagues = await context.Leagues.ToListAsync();
+        foreach (var league in leagues)
+        {
+            var leagueProfiles = profiles.Where(p => p.CurrentLeagueId == league.Id)
+                .OrderByDescending(p => p.WeeklyXP)
+                .ToList();
+            
+            for (int i = 0; i < leagueProfiles.Count; i++)
+            {
+                leagueProfiles[i].LastDayRank = i + 2; 
+            }
+        }
+        
+        await context.SaveChangesAsync();
+        Console.WriteLine($"[Seed] ✓ Gamification Data: 50 Users Created");
     }
 }

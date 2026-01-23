@@ -13,6 +13,25 @@ public class LeagueService(ApplicationDbContext context, IGamificationService ga
         await gamificationService.ProcessWeeklyLeagueAsync();
     }
 
+    public async Task SnapshotDailyRanksAsync()
+    {
+        var leagues = await context.Leagues.Include(l => l.Users).ToListAsync();
+
+        foreach (var league in leagues)
+        {
+            var rankedUsers = league.Users
+                .OrderByDescending(u => u.WeeklyXP)
+                .ToList();
+
+            for (int i = 0; i < rankedUsers.Count; i++)
+            {
+                rankedUsers[i].LastDayRank = i + 1;
+            }
+        }
+
+        await context.SaveChangesAsync();
+    }
+
     public async Task<Response<List<LeagueDto>>> GetLeaguesAsync()
     {
         var leagues = await context.Leagues
@@ -38,14 +57,27 @@ public class LeagueService(ApplicationDbContext context, IGamificationService ga
             .OrderByDescending(p => p.WeeklyXP)
             .ToListAsync();
 
-        var standings = users.Select((p, index) => new LeagueStandingDto
+        var standings = users.Select((p, index) => 
         {
-            UserId = p.UserId,
-            UserFullName = $"{p.FirstName} {p.LastName}",
-            AvatarUrl = p.AvatarUrl,
-            WeeklyXP = p.WeeklyXP,
-            Rank = index + 1,
-            IsCurrentUser = p.UserId == userId
+            var currentRank = index + 1;
+            var trend = "STABLE";
+
+            if (p.LastDayRank != 0)
+            {
+                if (currentRank < p.LastDayRank) trend = "UP";
+                else if (currentRank > p.LastDayRank) trend = "DOWN";
+            }
+
+            return new LeagueStandingDto
+            {
+                UserId = p.UserId,
+                UserFullName = $"{p.FirstName} {p.LastName}",
+                AvatarUrl = p.AvatarUrl,
+                WeeklyXP = p.WeeklyXP,
+                Rank = currentRank,
+                Trend = trend,
+                IsCurrentUser = p.UserId == userId
+            };
         }).ToList();
 
         return new Response<List<LeagueStandingDto>>(standings);
