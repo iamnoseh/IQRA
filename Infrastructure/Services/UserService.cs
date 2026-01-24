@@ -33,6 +33,8 @@ public partial class UserService(
 
     public async Task<Response<bool>> UpdateProfileAsync(Guid userId, UpdateProfileRequest request)
     {
+        
+        
         var profile = await context.UserProfiles.FirstOrDefaultAsync(p => p.UserId == userId);
         
         if (profile == null)
@@ -67,6 +69,20 @@ public partial class UserService(
 
         if (!string.IsNullOrWhiteSpace(request.TargetFaculty))
             profile.TargetFaculty = request.TargetFaculty;
+
+        if (request.TargetUniversityId.HasValue)
+        {
+            var university = await context.Universities.FindAsync(request.TargetUniversityId.Value);
+            if (university != null)
+                profile.TargetUniversity = university.Name;
+        }
+
+        if (request.TargetFacultyId.HasValue)
+        {
+            var faculty = await context.Faculties.FindAsync(request.TargetFacultyId.Value);
+            if (faculty != null)
+                profile.TargetFaculty = faculty.Name;
+        }
 
         if (request.TargetMajorId.HasValue)
         {

@@ -34,6 +34,10 @@ public class UpdateProfileRequest
     [StringLength(100)]
     public string? TargetFaculty { get; set; }
 
+    public int? TargetUniversityId { get; set; }
+    
+    public int? TargetFacultyId { get; set; }
+
     public int? TargetMajorId { get; set; }
     
     public IFormFile? Avatar { get; set; }
