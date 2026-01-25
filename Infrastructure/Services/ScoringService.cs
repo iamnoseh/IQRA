@@ -53,17 +53,16 @@ public class ScoringService : IScoringService
         var correctPairs = question.Answers
             .Where(a => !string.IsNullOrWhiteSpace(a.MatchPairText))
             .Select(a => $"{a.Text.Trim()}:{a.MatchPairText!.Trim()}")
-            .OrderBy(p => p)
-            .ToList();
+            .Select(pair => pair.ToLowerInvariant())
+            .ToHashSet();
 
         var userPairs = userAnswer.TextResponse
-            .Split(',')
-            .Select(p => p.Trim())
-            .Where(p => !string.IsNullOrWhiteSpace(p))
-            .OrderBy(p => p)
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(pair => pair.ToLowerInvariant())
             .ToList();
 
-        int correctCount = userPairs.Count(userPair => correctPairs.Contains(userPair));
+        int correctCount = userPairs.Count(correctPairs.Contains);
+        
         return Math.Min(correctCount * ScoringConstants.ScoreMatchingPair, ScoringConstants.ScoreMatchingMax);
     }
 }

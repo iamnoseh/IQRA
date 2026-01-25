@@ -1,3 +1,4 @@
+using Application.Constants;
 using Application.DTOs.Testing;
 using Application.Interfaces;
 using Application.Responses;
@@ -172,6 +173,12 @@ public class TestService(
         long? correctAnswerId = null;
         string? correctAnswerText = null;
         string? chosenAnswerText = null;
+        
+        int? matchingScore = null;
+        int? matchingCorrectCount = null;
+        int? matchingTotalCount = null;
+
+        string? matchingDebugInfo = null;
 
         if (question.Type == QuestionType.SingleChoice)
         {
@@ -191,20 +198,47 @@ public class TestService(
         else if (question.Type == QuestionType.Matching)
         {
             var correctPairs = question.Answers
-                .OrderBy(a => a.Text)
-                .Select(a => $"{a.Text.Trim()}:{a.MatchPairText?.Trim()}")
-                .ToList();
+                .Where(a => !string.IsNullOrWhiteSpace(a.MatchPairText))
+                .Select(a => $"{a.Text.Trim()}:{a.MatchPairText!.Trim()}")
+                .Select(pair => pair.ToLowerInvariant())
+                .ToHashSet();
+
+            // DEBUG LOGGING
+            Console.WriteLine("=== MATCHING DEBUG ===");
+            Console.WriteLine($"Correct HashSet: {string.Join(" | ", correctPairs)}");
             
-            correctAnswerText = string.Join(", ", correctPairs);
+            correctAnswerText = string.Join(", ", question.Answers
+                .Where(a => !string.IsNullOrWhiteSpace(a.MatchPairText))
+                .Select(a => $"{a.Text.Trim()}:{a.MatchPairText!.Trim()}"));
             
             var userResponse = request.TextResponse ?? "";
-            var userPairs = userResponse.Split(',')
-                .Select(p => p.Trim())
-                .OrderBy(p => p.Split(':')[0].Trim())
+            Console.WriteLine($"Raw User Response: '{userResponse}'");
+
+            var userPairs = userResponse
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(pair => pair.ToLowerInvariant())
                 .ToList();
 
-            isCorrect = userPairs.SequenceEqual(correctPairs);
+            Console.WriteLine($"Parsed User Pairs: {string.Join(" | ", userPairs)}");
+
+            int correctPairsCount = userPairs.Count(correctPairs.Contains);
+            Console.WriteLine($"Matches Found: {correctPairsCount}");
+            Console.WriteLine("======================");
+
+            int totalPairsCount = correctPairs.Count;
+            int score = Math.Min(correctPairsCount * ScoringConstants.ScoreMatchingPair, ScoringConstants.ScoreMatchingMax);
+            
+            matchingCorrectCount = correctPairsCount;
+            matchingTotalCount = totalPairsCount;
+            matchingScore = score;
+            
+            isCorrect = correctPairsCount == totalPairsCount;
             chosenAnswerText = userResponse;
+            
+            if (!isCorrect)
+            {
+               matchingDebugInfo = $"\n\n[DEBUG DATA]\nCorrect: {string.Join(" | ", correctPairs)}\nUser: {string.Join(" | ", userPairs)}";
+            }
         }
 
         var userAnswer = new UserAnswer
@@ -229,13 +263,22 @@ public class TestService(
                 ? await aiService.GetMotivationAsync(question.Content, chosenAnswerText ?? "")
                 : await aiService.GetExplanationAsync(question.Content, correctAnswerText ?? "", chosenAnswerText ?? "");
         }
+        
+        if (matchingDebugInfo != null)
+        {
+            feedbackText += matchingDebugInfo;
+        }
 
         var feedback = new AnswerFeedbackDto
         {
             IsCorrect = isCorrect,
             CorrectAnswerId = isCorrect ? null : correctAnswerId,
             CorrectAnswerText = isCorrect ? null : correctAnswerText,
-            FeedbackText = feedbackText
+            FeedbackText = feedbackText,
+            Score = matchingScore,
+            MaxScore = matchingScore.HasValue ? ScoringConstants.ScoreMatchingMax : null,
+            CorrectPairsCount = matchingCorrectCount,
+            TotalPairsCount = matchingTotalCount
         };
 
         return new Response<AnswerFeedbackDto>(feedback);
