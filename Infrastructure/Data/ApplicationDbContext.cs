@@ -37,6 +37,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<RedListQuestion> RedListQuestions { get; set; }
     public DbSet<UserLoginActivity> UserLoginActivities { get; set; }
     public DbSet<Notification> Notifications { get; set; }
+    public DbSet<MotivationalQuote> MotivationalQuotes { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -310,6 +311,14 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.Property(ni => ni.Body).IsRequired();
             entity.Property(ni => ni.PublishedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.Property(ni => ni.IsPublished).HasDefaultValue(false);
+        });
+
+        modelBuilder.Entity<MotivationalQuote>(entity =>
+        {
+            entity.HasKey(q => q.Id);
+            entity.Property(q => q.Content).IsRequired();
+            entity.Property(q => q.Author).HasMaxLength(100);
+            entity.Property(q => q.Language).HasMaxLength(10);
         });
     }
 

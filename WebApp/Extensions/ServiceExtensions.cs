@@ -29,6 +29,7 @@ public static class ServiceExtensions
         services.AddScoped<IGamificationService, GamificationService>();
         services.AddScoped<ILeagueService, LeagueService>();
         services.AddScoped<INotificationService, NotificationService>();
+        services.AddScoped<IMotivationService, MotivationService>();
         
         services.AddHttpClient<IAiService, GoogleGeminiAiService>(client =>
         {
