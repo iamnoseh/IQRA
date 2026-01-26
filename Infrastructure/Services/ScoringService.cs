@@ -50,18 +50,27 @@ public class ScoringService : IScoringService
         if (string.IsNullOrWhiteSpace(userAnswer.TextResponse))
             return 0;
 
-        var correctPairs = question.Answers
-            .Where(a => !string.IsNullOrWhiteSpace(a.MatchPairText))
-            .Select(a => $"{a.Text.Trim()}:{a.MatchPairText!.Trim()}")
-            .Select(pair => pair.ToLowerInvariant())
-            .ToHashSet();
-
         var userPairs = userAnswer.TextResponse
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(pair => pair.ToLowerInvariant())
+            .Select(p => p.Split(':'))
+            .Where(parts => parts.Length == 2)
+            .Select(parts => new { Left = parts[0].Trim().ToLowerInvariant(), Right = parts[1].Trim().ToLowerInvariant() })
             .ToList();
 
-        int correctCount = userPairs.Count(correctPairs.Contains);
+        int correctCount = 0;
+        var leftOptions = question.Answers.Where(a => !string.IsNullOrWhiteSpace(a.MatchPairText)).ToList();
+
+        foreach (var leftOption in leftOptions)
+        {
+            var userMatch = userPairs.FirstOrDefault(up => 
+                up.Left == leftOption.Id.ToString() || 
+                up.Left == leftOption.Text.Trim().ToLowerInvariant());
+            
+            if (userMatch != null && userMatch.Right == leftOption.MatchPairText!.Trim().ToLowerInvariant())
+            {
+                correctCount++;
+            }
+        }
         
         return Math.Min(correctCount * ScoringConstants.ScoreMatchingPair, ScoringConstants.ScoreMatchingMax);
     }

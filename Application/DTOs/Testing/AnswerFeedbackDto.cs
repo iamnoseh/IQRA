@@ -11,4 +11,5 @@ public class AnswerFeedbackDto
     public int? MaxScore { get; set; }
     public int? CorrectPairsCount { get; set; }
     public int? TotalPairsCount { get; set; }
+    public List<PairValidationDto>? ValidationPairs { get; set; }
 }

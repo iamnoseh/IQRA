@@ -180,6 +180,8 @@ public class TestService(
 
         string? matchingDebugInfo = null;
 
+        var feedback = new AnswerFeedbackDto();
+
         if (question.Type == QuestionType.SingleChoice)
         {
             var correctOption = question.Answers.FirstOrDefault(a => a.IsCorrect);
@@ -197,35 +199,48 @@ public class TestService(
         }
         else if (question.Type == QuestionType.Matching)
         {
-            var correctPairs = question.Answers
-                .Where(a => !string.IsNullOrWhiteSpace(a.MatchPairText))
-                .Select(a => $"{a.Text.Trim()}:{a.MatchPairText!.Trim()}")
-                .Select(pair => pair.ToLowerInvariant())
-                .ToHashSet();
-
-            // DEBUG LOGGING
-            Console.WriteLine("=== MATCHING DEBUG ===");
-            Console.WriteLine($"Correct HashSet: {string.Join(" | ", correctPairs)}");
-            
-            correctAnswerText = string.Join(", ", question.Answers
-                .Where(a => !string.IsNullOrWhiteSpace(a.MatchPairText))
-                .Select(a => $"{a.Text.Trim()}:{a.MatchPairText!.Trim()}"));
-            
             var userResponse = request.TextResponse ?? "";
-            Console.WriteLine($"Raw User Response: '{userResponse}'");
+            
+            Console.WriteLine($"[Matching] User Response: {userResponse}");
 
             var userPairs = userResponse
                 .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Select(pair => pair.ToLowerInvariant())
+                .Select(p => p.Split(':'))
+                .Where(parts => parts.Length == 2)
+                .Select(parts => new { Left = parts[0].Trim().ToLowerInvariant(), Right = parts[1].Trim().ToLowerInvariant() })
                 .ToList();
 
-            Console.WriteLine($"Parsed User Pairs: {string.Join(" | ", userPairs)}");
+            var validationPairs = new List<PairValidationDto>();
+            int correctPairsCount = 0;
+            var leftOptions = question.Answers.Where(a => !string.IsNullOrWhiteSpace(a.MatchPairText)).ToList();
 
-            int correctPairsCount = userPairs.Count(correctPairs.Contains);
-            Console.WriteLine($"Matches Found: {correctPairsCount}");
-            Console.WriteLine("======================");
+            foreach (var leftOption in leftOptions)
+            {
+                var leftIdStr = leftOption.Id.ToString();
+                var leftTextLower = leftOption.Text.Trim().ToLowerInvariant();
+                var correctRightLower = leftOption.MatchPairText!.Trim().ToLowerInvariant();
 
-            int totalPairsCount = correctPairs.Count;
+                var userMatch = userPairs.FirstOrDefault(up => 
+                    up.Left == leftIdStr || 
+                    up.Left == leftTextLower);
+                
+                bool isPairCorrect = userMatch != null && 
+                                   userMatch.Right == correctRightLower;
+                
+                if (isPairCorrect) correctPairsCount++;
+
+                Console.WriteLine($"[Matching] Left: {leftOption.Text} ({leftOption.Id}), Correct: {leftOption.MatchPairText}, User: {userMatch?.Right ?? "N/A"}, Result: {isPairCorrect}");
+
+                validationPairs.Add(new PairValidationDto
+                {
+                    LeftSide = leftOption.Text,
+                    RightSide = userMatch?.Right ?? string.Empty,
+                    CorrectRightSide = leftOption.MatchPairText,
+                    IsCorrect = isPairCorrect
+                });
+            }
+
+            int totalPairsCount = leftOptions.Count;
             int score = Math.Min(correctPairsCount * ScoringConstants.ScoreMatchingPair, ScoringConstants.ScoreMatchingMax);
             
             matchingCorrectCount = correctPairsCount;
@@ -234,11 +249,9 @@ public class TestService(
             
             isCorrect = correctPairsCount == totalPairsCount;
             chosenAnswerText = userResponse;
-            
-            if (!isCorrect)
-            {
-               matchingDebugInfo = $"\n\n[DEBUG DATA]\nCorrect: {string.Join(" | ", correctPairs)}\nUser: {string.Join(" | ", userPairs)}";
-            }
+            correctAnswerText = string.Join(", ", leftOptions.Select(a => $"{a.Text}: {a.MatchPairText}"));
+
+            feedback.ValidationPairs = validationPairs;
         }
 
         var userAnswer = new UserAnswer
@@ -269,17 +282,14 @@ public class TestService(
             feedbackText += matchingDebugInfo;
         }
 
-        var feedback = new AnswerFeedbackDto
-        {
-            IsCorrect = isCorrect,
-            CorrectAnswerId = isCorrect ? null : correctAnswerId,
-            CorrectAnswerText = isCorrect ? null : correctAnswerText,
-            FeedbackText = feedbackText,
-            Score = matchingScore,
-            MaxScore = matchingScore.HasValue ? ScoringConstants.ScoreMatchingMax : null,
-            CorrectPairsCount = matchingCorrectCount,
-            TotalPairsCount = matchingTotalCount
-        };
+        feedback.IsCorrect = isCorrect;
+        feedback.CorrectAnswerId = isCorrect ? null : correctAnswerId;
+        feedback.CorrectAnswerText = isCorrect ? null : correctAnswerText;
+        feedback.FeedbackText = feedbackText;
+        feedback.Score = matchingScore;
+        feedback.MaxScore = matchingScore.HasValue ? ScoringConstants.ScoreMatchingMax : null;
+        feedback.CorrectPairsCount = matchingCorrectCount;
+        feedback.TotalPairsCount = matchingTotalCount;
 
         return new Response<AnswerFeedbackDto>(feedback);
     }
