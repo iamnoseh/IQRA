@@ -8,5 +8,6 @@ public interface IGamificationService
     Task<int> CalculateXpAsync(Question question, bool isCorrect);
     Task<int> ProcessTestSessionEndAsync(Guid userId, TestSession session);
     Task ProcessDuelResultAsync(Guid winnerUserId, Guid loserUserId);
+    Task UpdateUserXpAsync(Guid userId, int xpAmount);
     Task ProcessWeeklyLeagueAsync();
 }

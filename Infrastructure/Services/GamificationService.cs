@@ -91,6 +91,23 @@ public class GamificationService : IGamificationService
         await _context.SaveChangesAsync();
     }
 
+    public async Task UpdateUserXpAsync(Guid userId, int xpAmount)
+    {
+        Console.WriteLine($"[GamificationService] UpdateUserXpAsync: User={userId}, Amount={xpAmount}");
+        var userProfile = await _context.UserProfiles.FirstOrDefaultAsync(p => p.UserId == userId);
+        if (userProfile != null)
+        {
+            userProfile.XP += xpAmount;
+            userProfile.WeeklyXP += xpAmount;
+            await _context.SaveChangesAsync();
+            Console.WriteLine($"[GamificationService] XP Updated for {userId}. New XP: {userProfile.XP}");
+        }
+        else
+        {
+            Console.WriteLine($"[GamificationService] WARNING: UserProfile not found for {userId}");
+        }
+    }
+
     public async Task ProcessWeeklyLeagueAsync()
     {
         var leagues = await _context.Leagues.OrderBy(l => l.Id).ToListAsync();

@@ -20,6 +20,7 @@ builder.Services.AddApplicationServices(builder.Configuration);
 builder.Services.AddCorsConfiguration();
 
 builder.Services.AddControllers();
+builder.Services.AddSignalR();
 builder.Services.AddEndpointsApiExplorer();
 
 builder.Services.AddSwaggerConfiguration();
@@ -95,5 +96,5 @@ RecurringJob.AddOrUpdate<ILeagueService>(
 );
 
 app.MapControllers();
-
+app.MapHub<Infrastructure.Hubs.DuelHub>("/hubs/duel");
 app.Run();
