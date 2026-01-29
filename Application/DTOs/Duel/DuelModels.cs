@@ -1,37 +1,8 @@
-using System;
-using System.Collections.Generic;
+using Application.DTOs.Testing;
+using Domain.Enums;
 
 namespace Application.DTOs.Duel;
 
-public enum DuelStatus
-{
-    Waiting,
-    Starting,
-    InProgress,
-    Finished,
-    Canceled
-}
-
-public class DuelQuestionDto
-{
-    public long Id { get; set; }
-    public string Content { get; set; } = string.Empty;
-    public string SubjectName { get; set; } = string.Empty;
-    public string? Topic { get; set; }
-    public string? ImageUrl { get; set; }
-    public int Type { get; set; } // 1=Single, 2=Matching, 3=Closed
-    public int TimeLimitSeconds { get; set; } = 30;
-    
-    public List<DuelAnswerOptionDto> Answers { get; set; } = new();
-    public List<string> MatchOptions { get; set; } = new();
-}
-
-public class DuelAnswerOptionDto
-{
-    public long Id { get; set; }
-    public string Text { get; set; } = string.Empty;
-    public string? MatchPairText { get; set; }
-}
 
 public class PlayerInfo
 {
@@ -39,21 +10,40 @@ public class PlayerInfo
     public string UserId { get; set; } = string.Empty;
     public string UserName { get; set; } = string.Empty;
     public string? ProfilePicture { get; set; }
-    public int Score { get; set; }
     public bool IsReady { get; set; }
 }
+
 
 public class DuelSession
 {
     public string SessionId { get; set; } = Guid.NewGuid().ToString();
     public PlayerInfo Player1 { get; set; } = new();
     public PlayerInfo Player2 { get; set; } = new();
-    public List<DuelQuestionDto> Questions { get; set; } = new();
+    
+    public List<QuestionWithAnswersDto> Questions { get; set; } = new();
     public bool QuestionsReady { get; set; }
     public int CurrentQuestionIndex { get; set; } = -1;
-    public DuelStatus Status { get; set; } = DuelStatus.Waiting;
     
-    public int AnsweredCount { get; set; } 
+    public int Player1TotalScore { get; set; }
+    public int Player2TotalScore { get; set; }
+    
+    public DuelStatus Status { get; set; } = DuelStatus.Waiting;
+    public DateTime? MatchFoundAt { get; set; }
+    
+    public int AnsweredCount { get; set; }
     public bool Player1Answered { get; set; }
     public bool Player2Answered { get; set; }
+}
+
+public class DuelSubmissionResult
+{
+    public bool Success { get; set; }
+    public int CurrentScore { get; set; }
+    public int OpponentScore { get; set; }
+    public int AddedScore { get; set; }
+    public bool IsCorrect { get; set; }
+    public List<string> CorrectPairIds { get; set; } = new();
+    public long? CorrectAnswerId { get; set; }
+    public bool BothAnswered { get; set; }
+    public bool IsDuelFinished { get; set; }
 }
