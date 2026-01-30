@@ -347,23 +347,67 @@ public class DuelManager(IServiceScopeFactory scopeFactory)
             var p1Id = Guid.Parse(p1.UserId);
             var p2Id = Guid.Parse(p2.UserId);
 
+            // Determine winner and calculate XP
             Guid? winnerId = null;
-            if (session.Player1TotalScore > session.Player2TotalScore) winnerId = p1Id;
-            else if (session.Player2TotalScore > session.Player1TotalScore) winnerId = p2Id;
-            int p1Xp = session.Player1TotalScore;
-            int p2Xp = session.Player2TotalScore;
+            int p1XpChange = session.Player1TotalScore;
+            int p2XpChange = session.Player2TotalScore;
 
-            if (session.Player1TotalScore > session.Player2TotalScore) p1Xp += 50;
-            else if (session.Player2TotalScore > session.Player1TotalScore) p2Xp += 50;
+            if (!string.IsNullOrEmpty(session.TimedOutPlayerId))
+            {
+                // Sudden Death Timeout logic
+                if (session.TimedOutPlayerId == p1.UserId)
+                {
+                    p1XpChange = -50; 
+                    p2XpChange += 50; // Win bonus for winner
+                    winnerId = p2Id;
+                }
+                else
+                {
+                    p2XpChange = -50;
+                    p1XpChange += 50; // Win bonus for winner
+                    winnerId = p1Id;
+                }
+            }
+            else if (!string.IsNullOrEmpty(session.DisconnectedPlayerId))
+            {
+                // Disconnect logic
+                if (session.DisconnectedPlayerId == p1.UserId)
+                {
+                    p2XpChange += 50;
+                    winnerId = p2Id;
+                }
+                else
+                {
+                    p1XpChange += 50;
+                    winnerId = p1Id;
+                }
+            }
+            else
+            {
+                // Normal game end
+                if (session.Player1TotalScore > session.Player2TotalScore)
+                {
+                    p1XpChange += 50;
+                    winnerId = p1Id;
+                }
+                else if (session.Player2TotalScore > session.Player1TotalScore)
+                {
+                    p2XpChange += 50;
+                    winnerId = p2Id;
+                }
+            }
 
-            await gamification.UpdateUserXpAsync(p1Id, p1Xp);
-            await gamification.UpdateUserXpAsync(p2Id, p2Xp);
+            // Update XP in database
+            await gamification.UpdateUserXpAsync(p1Id, p1XpChange);
+            await gamification.UpdateUserXpAsync(p2Id, p2XpChange);
             
+            // Update Elo ratings
             if (winnerId == p1Id) 
                 await gamification.ProcessDuelResultAsync(p1Id, p2Id);
             else if (winnerId == p2Id) 
                 await gamification.ProcessDuelResultAsync(p2Id, p1Id);
 
+            // Save DuelMatch record for activity tracking
             var duelMatch = new Domain.Entities.Gamification.DuelMatch
             {
                 Id = Guid.NewGuid(),
@@ -382,6 +426,8 @@ public class DuelManager(IServiceScopeFactory scopeFactory)
 
             context.DuelMatches.Add(duelMatch);
             await context.SaveChangesAsync();
+
+            Console.WriteLine($"[DuelManager] DuelMatch saved. Winner={winnerId}, P1_XP_Change={p1XpChange}, P2_XP_Change={p2XpChange}");
         }
         catch (Exception ex)
         {
@@ -441,9 +487,18 @@ public class DuelManager(IServiceScopeFactory scopeFactory)
 
         if (!isPlayer1 && !isPlayer2) return result;
         
+        // Check if player already answered
         if (isPlayer1 && session.Player1Answered) return result;
         if (isPlayer2 && session.Player2Answered) return result;
 
+        Console.WriteLine($"[DuelManager] SUDDEN DEATH TIMEOUT: Player {playerId} lost the duel by timeout on Q{questionIndex}");
+
+        // Immediately terminate the duel
+        session.Status = DuelStatus.Finished;
+        session.TimedOutPlayerId = playerId;
+        session.QuestionTimerCts?.Cancel(); // Stop timer
+
+        // Mark as answered with 0 points
         if (isPlayer1)
         {
             session.Player1Answered = true;
@@ -476,22 +531,10 @@ public class DuelManager(IServiceScopeFactory scopeFactory)
         result.AddedScore = 0;
         result.CurrentScore = isPlayer1 ? session.Player1TotalScore : session.Player2TotalScore;
         result.OpponentScore = isPlayer1 ? session.Player2TotalScore : session.Player1TotalScore;
+        result.IsDuelFinished = true;
 
-        if (session.AnsweredCount >= 2)
-        {
-            result.BothAnswered = true;
-            session.Player1Answered = false;
-            session.Player2Answered = false;
-            session.AnsweredCount = 0;
-            session.CurrentQuestionIndex++;
-
-            if (session.CurrentQuestionIndex >= session.Questions.Count)
-            {
-                session.Status = DuelStatus.Finished;
-                result.IsDuelFinished = true;
-                _ = ProcessGameEndAsync(session);
-            }
-        }
+        // Process game end immediately (xp penalty/bonus)
+        _ = ProcessGameEndAsync(session);
 
         return result;
     }

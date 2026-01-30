@@ -165,44 +165,33 @@ public class DuelHub : Hub
 
     private async Task HandleQuestionTimeout(DuelSession session, int questionIndex)
     {
-        // Check if session is still valid
         if (session.Status != DuelStatus.InProgress || session.CurrentQuestionIndex != questionIndex)
             return;
 
         bool p1TimedOut = !session.Player1Answered;
         bool p2TimedOut = !session.Player2Answered;
 
-        Console.WriteLine($"[DuelHub] Timeout check: P1TimedOut={p1TimedOut}, P2TimedOut={p2TimedOut}");
+        Console.WriteLine($"[DuelHub] SUDDEN DEATH Timeout: P1={p1TimedOut}, P2={p2TimedOut}");
 
-        // Force timeout for players who haven't answered
-        if (p1TimedOut)
+        if (p1TimedOut || p2TimedOut)
         {
-            var p1Result = _duelManager.ForceTimeoutForPlayer(session.SessionId, session.Player1.UserId, questionIndex);
-            if (p1Result.Success)
+            // If someone timed out, ForceTimeout will end the game and handle XP
+            if (p1TimedOut)
             {
-                await _hubContext.Clients.Client(session.Player1.ConnectionId).SendAsync("AnswerResult", p1Result);
+                var result = _duelManager.ForceTimeoutForPlayer(session.SessionId, session.Player1.UserId, questionIndex);
+                await _hubContext.Clients.Client(session.Player1.ConnectionId).SendAsync("AnswerResult", result);
             }
-        }
-
-        if (p2TimedOut)
-        {
-            var p2Result = _duelManager.ForceTimeoutForPlayer(session.SessionId, session.Player2.UserId, questionIndex);
-            if (p2Result.Success)
+            if (p2TimedOut)
             {
-                await _hubContext.Clients.Client(session.Player2.ConnectionId).SendAsync("AnswerResult", p2Result);
+                var result = _duelManager.ForceTimeoutForPlayer(session.SessionId, session.Player2.UserId, questionIndex);
+                await _hubContext.Clients.Client(session.Player2.ConnectionId).SendAsync("AnswerResult", result);
             }
-        }
 
-        // Refresh session state after forced timeouts
-        var updatedSession = _duelManager.GetSession(session.SessionId);
-        if (updatedSession == null) return;
-
-        // If both have now answered (including timeouts), process round end
-        if (updatedSession.AnsweredCount >= 2 || (p1TimedOut && p2TimedOut) || 
-            (!p1TimedOut && p2TimedOut && updatedSession.Player1Answered) ||
-            (p1TimedOut && !p2TimedOut && updatedSession.Player2Answered))
-        {
-            await ProcessRoundEnd(updatedSession, questionIndex);
+            var updatedSession = _duelManager.GetSession(session.SessionId);
+            if (updatedSession != null && updatedSession.Status == DuelStatus.Finished)
+            {
+                await SendDuelFinished(updatedSession);
+            }
         }
     }
 
@@ -240,7 +229,7 @@ public class DuelHub : Hub
         await _hubContext.Clients.Client(session.Player1.ConnectionId).SendAsync("RoundResult", p1RoundResult);
         await _hubContext.Clients.Client(session.Player2.ConnectionId).SendAsync("RoundResult", p2RoundResult);
 
-        // Reset round state
+        // Reset round state for next question
         session.Player1Answered = false;
         session.Player2Answered = false;
         session.AnsweredCount = 0;
@@ -250,25 +239,55 @@ public class DuelHub : Hub
 
         if (session.CurrentQuestionIndex >= session.Questions.Count || session.Status == DuelStatus.Finished)
         {
-            session.Status = DuelStatus.Finished;
-            Console.WriteLine($"[DuelHub] Duel finished. Sending DuelFinished event.");
-            var finishedEvent = new DuelFinishedEvent
-            {
-                SessionId = session.SessionId,
-                Player1 = session.Player1,
-                Player2 = session.Player2,
-                Player1TotalScore = session.Player1TotalScore,
-                Player2TotalScore = session.Player2TotalScore,
-                WinnerId = session.Player1TotalScore > session.Player2TotalScore ? session.Player1.UserId : 
-                           session.Player2TotalScore > session.Player1TotalScore ? session.Player2.UserId : null,
-                Status = DuelStatus.Finished
-            };
-            await _hubContext.Clients.Group(session.SessionId).SendAsync("DuelFinished", finishedEvent);
+            await SendDuelFinished(session);
         }
         else
         {
-            // Start next question with timer
             await StartQuestionWithTimer(session, session.CurrentQuestionIndex);
+        }
+    }
+
+    private async Task SendDuelFinished(DuelSession session)
+    {
+        session.Status = DuelStatus.Finished;
+        Console.WriteLine($"[DuelHub] Sending DuelFinished event for session {session.SessionId}");
+
+        // Determine winner
+        string? winnerId = null;
+        if (!string.IsNullOrEmpty(session.TimedOutPlayerId))
+        {
+            winnerId = session.TimedOutPlayerId == session.Player1.UserId ? session.Player2.UserId : session.Player1.UserId;
+        }
+        else if (!string.IsNullOrEmpty(session.DisconnectedPlayerId))
+        {
+            winnerId = session.DisconnectedPlayerId == session.Player1.UserId ? session.Player2.UserId : session.Player1.UserId;
+        }
+        else if (session.Player1TotalScore > session.Player2TotalScore)
+        {
+            winnerId = session.Player1.UserId;
+        }
+        else if (session.Player2TotalScore > session.Player1TotalScore)
+        {
+            winnerId = session.Player2.UserId;
+        }
+
+        var finishedEvent = new DuelFinishedEvent
+        {
+            SessionId = session.SessionId,
+            Player1 = session.Player1,
+            Player2 = session.Player2,
+            Player1TotalScore = session.Player1TotalScore,
+            Player2TotalScore = session.Player2TotalScore,
+            WinnerId = winnerId,
+            Status = DuelStatus.Finished
+        };
+        
+        await _hubContext.Clients.Group(session.SessionId).SendAsync("DuelFinished", finishedEvent);
+        
+        if (!string.IsNullOrEmpty(session.TimedOutPlayerId))
+        {
+            string winnerName = session.TimedOutPlayerId == session.Player1.UserId ? session.Player2.UserName : session.Player1.UserName;
+            await _hubContext.Clients.Group(session.SessionId).SendAsync("DuelError", $"Бозӣ тамом шуд! Яке аз бозигарон дар вақташ ҷавоб надод. Ғолиб: {winnerName}");
         }
     }
 
@@ -398,23 +417,10 @@ public class DuelHub : Hub
 
             if (result.IsDuelFinished)
             {
-                Console.WriteLine($"[DuelHub] Duel finished. Sending DuelFinished event.");
-                var finishedEvent = new DuelFinishedEvent
-                {
-                    SessionId = session.SessionId,
-                    Player1 = session.Player1,
-                    Player2 = session.Player2,
-                    Player1TotalScore = session.Player1TotalScore,
-                    Player2TotalScore = session.Player2TotalScore,
-                    WinnerId = session.Player1TotalScore > session.Player2TotalScore ? session.Player1.UserId : 
-                               session.Player2TotalScore > session.Player1TotalScore ? session.Player2.UserId : null,
-                    Status = DuelStatus.Finished
-                };
-                await Clients.Group(sessionId).SendAsync("DuelFinished", finishedEvent);
+                await SendDuelFinished(session);
             }
             else
             {
-                // Start next question with timer
                 await StartQuestionWithTimer(session, session.CurrentQuestionIndex);
             }
         }
@@ -428,35 +434,12 @@ public class DuelHub : Hub
             // Cancel any pending timer
             session.QuestionTimerCts?.Cancel();
             
-            // Determine winner (the player who didn't disconnect)
-            string? winnerId = null;
-            string winnerName = "";
-            
-            if (session.DisconnectedPlayerId == session.Player1.UserId)
-            {
-                winnerId = session.Player2.UserId;
-                winnerName = session.Player2.UserName;
-            }
-            else if (session.DisconnectedPlayerId == session.Player2.UserId)
-            {
-                winnerId = session.Player1.UserId;
-                winnerName = session.Player1.UserName;
-            }
-            
-            Console.WriteLine($"[DuelHub] Player disconnected. Winner: {winnerName} ({winnerId})");
-            
-            var finishedEvent = new DuelFinishedEvent
-            {
-                SessionId = session.SessionId,
-                Player1 = session.Player1,
-                Player2 = session.Player2,
-                Player1TotalScore = session.Player1TotalScore,
-                Player2TotalScore = session.Player2TotalScore,
-                WinnerId = winnerId,
-                Status = DuelStatus.Finished
-            };
-            
-            await Clients.Group(session.SessionId).SendAsync("DuelFinished", finishedEvent);
+            await SendDuelFinished(session);
+
+            // Notify about the disconnection specifically
+            string? winnerId = session.DisconnectedPlayerId == session.Player1.UserId ? session.Player2.UserId : session.Player1.UserId;
+            string winnerName = session.DisconnectedPlayerId == session.Player1.UserId ? session.Player2.UserName : session.Player1.UserName;
+
             await Clients.Group(session.SessionId).SendAsync("OpponentDisconnected", new { 
                 WinnerId = winnerId, 
                 WinnerName = winnerName,

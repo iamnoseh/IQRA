@@ -41,6 +41,7 @@ public class DuelSession
     public CancellationTokenSource? QuestionTimerCts { get; set; }
     
     public string? DisconnectedPlayerId { get; set; }
+    public string? TimedOutPlayerId { get; set; }
 }
 
 public class DuelSubmissionResult
