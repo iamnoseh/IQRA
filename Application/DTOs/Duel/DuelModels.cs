@@ -33,6 +33,14 @@ public class DuelSession
     public int AnsweredCount { get; set; }
     public bool Player1Answered { get; set; }
     public bool Player2Answered { get; set; }
+    
+    public DuelSubmissionResult? Player1LastResult { get; set; }
+    public DuelSubmissionResult? Player2LastResult { get; set; }
+    
+    public DateTime? CurrentQuestionStartedAt { get; set; }
+    public CancellationTokenSource? QuestionTimerCts { get; set; }
+    
+    public string? DisconnectedPlayerId { get; set; }
 }
 
 public class DuelSubmissionResult

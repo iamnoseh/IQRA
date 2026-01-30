@@ -145,6 +145,17 @@ public partial class UserService
             .Where(s => s.UserId == userId && s.StartedAt >= startDate && s.StartedAt <= endDate.AddDays(1))
             .ToListAsync();
 
+        // Get duel statistics
+        var duels = await context.DuelMatches
+            .Where(d => (d.Player1Id == userId || d.Player2Id == userId) 
+                     && d.FinishedAt != null 
+                     && d.FinishedAt >= startDate 
+                     && d.FinishedAt <= endDate.AddDays(1))
+            .ToListAsync();
+
+        var totalDuels = duels.Count;
+        var totalDuelWins = duels.Count(d => d.WinnerId == userId);
+
         var dailyStats = new List<DailyTestCountDto>();
         var totalCorrectAnswers = 0;
         var totalAnswers = 0;
@@ -173,6 +184,8 @@ public partial class UserService
         var result = new TestActivityStatsDto
         {
             TotalTests = sessions.Count,
+            TotalDuels = totalDuels,
+            TotalDuelWins = totalDuelWins,
             OverallCorrectPercentage = totalAnswers > 0 ? Math.Round((double)totalCorrectAnswers / totalAnswers * 100, 1) : 0,
             DailyStats = dailyStats
         };
