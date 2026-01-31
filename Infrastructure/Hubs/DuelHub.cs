@@ -54,13 +54,12 @@ public class DuelHub : Hub
             return;
         }
 
-        // SAFETY TIMEOUT: Check if 10 seconds have passed since match found
-        if (session.MatchFoundAt.HasValue)
+        if (session.MatchFoundAt.HasValue && session.Status == DuelStatus.Starting)
         {
             var elapsed = DateTime.UtcNow - session.MatchFoundAt.Value;
             if (elapsed.TotalSeconds > 10)
             {
-                Console.WriteLine($"[DuelHub] Session {sessionId} timed out (elapsed: {elapsed.TotalSeconds}s)");
+                Console.WriteLine($"[DuelHub] Session {sessionId} initial connection timed out (elapsed: {elapsed.TotalSeconds}s)");
                 await Clients.Group(sessionId).SendAsync("DuelError", "Connection Timeout: Questions failed to load");
                 _duelManager.RemoveSession(sessionId);
                 return;
@@ -141,23 +140,30 @@ public class DuelHub : Hub
         };
         await Clients.Group(session.SessionId).SendAsync("QuestionStart", questionEvent);
         
-        // Start background timer
         _ = Task.Run(async () =>
         {
             try
             {
-                await Task.Delay(30000, cts.Token); // 30 seconds
+                await Task.Delay(30000, cts.Token);
                 
-                if (cts.Token.IsCancellationRequested) return;
+                if (cts.Token.IsCancellationRequested)
+                {
+                    Console.WriteLine($"[DuelHub] Timer cancelled for session {session.SessionId}, Q{questionIndex}");
+                    return;
+                }
                 
-                // Timer expired - force timeout for players who haven't answered
+                if (session.Player1Answered && session.Player2Answered)
+                {
+                    Console.WriteLine($"[DuelHub] Timer expired but both already answered for session {session.SessionId}, Q{questionIndex}");
+                    return;
+                }
+                
                 Console.WriteLine($"[DuelHub] TIMEOUT: 30 seconds passed for session {session.SessionId}, Q{questionIndex}");
                 
                 await HandleQuestionTimeout(session, questionIndex);
             }
             catch (TaskCanceledException)
             {
-                // Timer was cancelled (both players answered in time)
                 Console.WriteLine($"[DuelHub] Timer cancelled for session {session.SessionId}, Q{questionIndex}");
             }
         });
@@ -166,16 +172,35 @@ public class DuelHub : Hub
     private async Task HandleQuestionTimeout(DuelSession session, int questionIndex)
     {
         if (session.Status != DuelStatus.InProgress || session.CurrentQuestionIndex != questionIndex)
+        {
+            Console.WriteLine($"[DuelHub] Timeout ignored: Status={session.Status}, CurrentQ={session.CurrentQuestionIndex}, TimeoutQ={questionIndex}");
             return;
+        }
 
         bool p1TimedOut = !session.Player1Answered;
         bool p2TimedOut = !session.Player2Answered;
 
-        Console.WriteLine($"[DuelHub] SUDDEN DEATH Timeout: P1={p1TimedOut}, P2={p2TimedOut}");
+        var elapsed = DateTime.UtcNow - (session.CurrentQuestionStartedAt ?? DateTime.UtcNow);
+        Console.WriteLine($"[DuelHub] Timeout Check: Start={session.CurrentQuestionStartedAt:HH:mm:ss.fff}, Now={DateTime.UtcNow:HH:mm:ss.fff}, Elapsed={elapsed.TotalSeconds:F1}s, P1TimedOut={p1TimedOut}, P2TimedOut={p2TimedOut}");
 
-        if (p1TimedOut || p2TimedOut)
+        if (p1TimedOut && p2TimedOut)
         {
-            // If someone timed out, ForceTimeout will end the game and handle XP
+            Console.WriteLine($"[DuelHub] DOUBLE TIMEOUT: Both players failed to answer Q{questionIndex}. Ending duel as draw.");
+            
+            var result1 = _duelManager.ForceTimeoutForPlayer(session.SessionId, session.Player1.UserId, questionIndex);
+            var result2 = _duelManager.ForceTimeoutForPlayer(session.SessionId, session.Player2.UserId, questionIndex);
+            
+            await _hubContext.Clients.Client(session.Player1.ConnectionId).SendAsync("AnswerResult", result1);
+            await _hubContext.Clients.Client(session.Player2.ConnectionId).SendAsync("AnswerResult", result2);
+
+            var updatedSession = _duelManager.GetSession(session.SessionId);
+            if (updatedSession != null)
+            {
+                await ProcessRoundEnd(updatedSession, questionIndex);
+            }
+        }
+        else if (p1TimedOut || p2TimedOut)
+        {
             if (p1TimedOut)
             {
                 var result = _duelManager.ForceTimeoutForPlayer(session.SessionId, session.Player1.UserId, questionIndex);
@@ -188,20 +213,26 @@ public class DuelHub : Hub
             }
 
             var updatedSession = _duelManager.GetSession(session.SessionId);
-            if (updatedSession != null && updatedSession.Status == DuelStatus.Finished)
+            if (updatedSession != null)
             {
-                await SendDuelFinished(updatedSession);
+                if (updatedSession.Status == DuelStatus.Finished)
+                {
+                    await SendDuelFinished(updatedSession);
+                }
+                else if (updatedSession.AnsweredCount >= 2)
+                {
+                    await ProcessRoundEnd(updatedSession, questionIndex);
+                }
             }
         }
     }
 
     private async Task ProcessRoundEnd(DuelSession session, int questionIndex)
     {
-        // Get results from session
+
         var player1Result = session.Player1LastResult ?? new DuelSubmissionResult { Success = true, IsCorrect = false, AddedScore = 0 };
         var player2Result = session.Player2LastResult ?? new DuelSubmissionResult { Success = true, IsCorrect = false, AddedScore = 0 };
 
-        // Build RoundResult for both players
         var p1RoundResult = new RoundResultEvent
         {
             IsCorrect = player1Result.IsCorrect,
@@ -229,7 +260,6 @@ public class DuelHub : Hub
         await _hubContext.Clients.Client(session.Player1.ConnectionId).SendAsync("RoundResult", p1RoundResult);
         await _hubContext.Clients.Client(session.Player2.ConnectionId).SendAsync("RoundResult", p2RoundResult);
 
-        // Reset round state for next question
         session.Player1Answered = false;
         session.Player2Answered = false;
         session.AnsweredCount = 0;
@@ -252,7 +282,7 @@ public class DuelHub : Hub
         session.Status = DuelStatus.Finished;
         Console.WriteLine($"[DuelHub] Sending DuelFinished event for session {session.SessionId}");
 
-        // Determine winner
+
         string? winnerId = null;
         if (!string.IsNullOrEmpty(session.TimedOutPlayerId))
         {
@@ -303,13 +333,10 @@ public class DuelHub : Hub
             return;
         }
 
-        // Send immediate feedback to the caller
         await Clients.Caller.SendAsync("AnswerResult", result);
 
-        // Create cache key for this round
         string cacheKey = $"{sessionId}_Q{qIndex}";
 
-        // Store this player's result in cache (FULLY ATOMIC)
         lock (_roundAnswerCache)
         {
             if (!_roundAnswerCache.TryGetValue(cacheKey, out var roundCache))
@@ -323,22 +350,19 @@ public class DuelHub : Hub
             Console.WriteLine($"[DuelHub] CACHE STORE: Key={cacheKey}, UserId={userId}, IsCorrect={result.IsCorrect}, AddedScore={result.AddedScore}, CacheSize={roundCache.Count}");
         }
 
-        // REVIEW PHASE: When both players have answered
         if (result.BothAnswered)
         {
-            // Cancel the timer since both answered
             session.QuestionTimerCts?.Cancel();
 
             Console.WriteLine($"[DuelHub] Both answered. Sending RoundResult, then waiting 3s...");
             
-            // Determine player IDs
+            
             bool isPlayer1 = session.Player1.UserId.Equals(userId, StringComparison.OrdinalIgnoreCase);
             string player1Id = session.Player1.UserId;
             string player2Id = session.Player2.UserId;
 
             Console.WriteLine($"[DuelHub] Player IDs: P1={player1Id}, P2={player2Id}, CurrentSubmitter={userId}, IsP1={isPlayer1}");
 
-            // Retrieve both players' results from cache (ATOMIC READ)
             DuelSubmissionResult? player1Result = null;
             DuelSubmissionResult? player2Result = null;
 

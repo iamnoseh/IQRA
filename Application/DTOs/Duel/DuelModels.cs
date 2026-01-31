@@ -37,6 +37,9 @@ public class DuelSession
     public DuelSubmissionResult? Player1LastResult { get; set; }
     public DuelSubmissionResult? Player2LastResult { get; set; }
     
+    public List<QuestionAnswerRecord> Player1AnswerHistory { get; set; } = new();
+    public List<QuestionAnswerRecord> Player2AnswerHistory { get; set; } = new();
+    
     public DateTime? CurrentQuestionStartedAt { get; set; }
     public CancellationTokenSource? QuestionTimerCts { get; set; }
     
@@ -55,4 +58,12 @@ public class DuelSubmissionResult
     public long? CorrectAnswerId { get; set; }
     public bool BothAnswered { get; set; }
     public bool IsDuelFinished { get; set; }
+}
+
+public class QuestionAnswerRecord
+{
+    public long QuestionId { get; set; }
+    public bool IsCorrect { get; set; }
+    public string? UserAnswer { get; set; }
+    public int TimeSpentSeconds { get; set; }
 }
