@@ -278,14 +278,27 @@ public class DuelManager(IServiceScopeFactory scopeFactory)
             if (isCorrect) playerScoreToAdd = 10;
         }
 
-        // FIXED: Update session-level scores instead of player.Score
         if (isPlayer1)
         {
             session.Player1TotalScore += playerScoreToAdd;
+            session.Player1AnswerHistory.Add(new QuestionAnswerRecord
+            {
+                QuestionId = dbQuestion.Id,
+                IsCorrect = isCorrect,
+                UserAnswer = answer,
+                TimeSpentSeconds = (int)(DateTime.UtcNow - (session.CurrentQuestionStartedAt ?? DateTime.UtcNow)).TotalSeconds
+            });
         }
         else
         {
             session.Player2TotalScore += playerScoreToAdd;
+            session.Player2AnswerHistory.Add(new QuestionAnswerRecord
+            {
+                QuestionId = dbQuestion.Id,
+                IsCorrect = isCorrect,
+                UserAnswer = answer,
+                TimeSpentSeconds = (int)(DateTime.UtcNow - (session.CurrentQuestionStartedAt ?? DateTime.UtcNow)).TotalSeconds
+            });
         }
 
         Console.WriteLine($"[DuelManager] ANSWER PROCESSED: UserId={userId}, IsP1={isPlayer1}, IsCorrect={isCorrect}, PointsAdded={playerScoreToAdd}, NewTotalScore={(isPlayer1 ? session.Player1TotalScore : session.Player2TotalScore)}");
@@ -339,95 +352,197 @@ public class DuelManager(IServiceScopeFactory scopeFactory)
             Console.WriteLine($"[DuelManager] ProcessGameEndAsync: Session={session.SessionId}");
             using var scope = scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            var gamification = scope.ServiceProvider.GetRequiredService<IGamificationService>();
 
             var p1 = session.Player1;
             var p2 = session.Player2;
 
-            var p1Id = Guid.Parse(p1.UserId);
-            var p2Id = Guid.Parse(p2.UserId);
+            if (!Guid.TryParse(p1.UserId, out var p1GuidId))
+            {
+                Console.WriteLine($"[DuelManager] CRITICAL: Invalid GUID for Player1: {p1.UserId}");
+                return;
+            }
 
-            // Determine winner and calculate XP
+            if (!Guid.TryParse(p2.UserId, out var p2GuidId))
+            {
+                Console.WriteLine($"[DuelManager] CRITICAL: Invalid GUID for Player2: {p2.UserId}");
+                return;
+            }
+
+            // IMPORTANT: Frontend sends UserProfile.Id (not AppUser.Id)
+            // So we query by UserProfile.Id (primary key), not UserProfile.UserId (foreign key)
+            var p1Profile = await context.UserProfiles.FirstOrDefaultAsync(u => u.Id == p1GuidId);
+            var p2Profile = await context.UserProfiles.FirstOrDefaultAsync(u => u.Id == p2GuidId);
+
+            if (p1Profile == null)
+            {
+                Console.WriteLine($"[DuelManager] WARNING: UserProfile not found for Player1 ProfileId={p1GuidId}. XP will not be updated.");
+            }
+
+            if (p2Profile == null)
+            {
+                Console.WriteLine($"[DuelManager] WARNING: UserProfile not found for Player2 ProfileId={p2GuidId}. XP will not be updated.");
+            }
+
+            if (p1Profile == null && p2Profile == null)
+            {
+                Console.WriteLine($"[DuelManager] WARNING: Both profiles are null. Saving TestSessions only, no XP/ELO updates.");
+            }
+
             Guid? winnerId = null;
             int p1XpChange = session.Player1TotalScore;
             int p2XpChange = session.Player2TotalScore;
 
             if (!string.IsNullOrEmpty(session.TimedOutPlayerId))
             {
-                // Sudden Death Timeout logic
                 if (session.TimedOutPlayerId == p1.UserId)
                 {
-                    p1XpChange = -50; 
-                    p2XpChange += 50; // Win bonus for winner
-                    winnerId = p2Id;
+                    p1XpChange = -50;
+                    p2XpChange += 50;
+                    winnerId = p2Profile?.Id;
                 }
                 else
                 {
+                    p1XpChange += 50;
                     p2XpChange = -50;
-                    p1XpChange += 50; // Win bonus for winner
-                    winnerId = p1Id;
+                    winnerId = p1Profile?.Id;
                 }
             }
             else if (!string.IsNullOrEmpty(session.DisconnectedPlayerId))
             {
-                // Disconnect logic
                 if (session.DisconnectedPlayerId == p1.UserId)
                 {
                     p2XpChange += 50;
-                    winnerId = p2Id;
+                    winnerId = p2Profile?.Id;
                 }
                 else
                 {
                     p1XpChange += 50;
-                    winnerId = p1Id;
+                    winnerId = p1Profile?.Id;
                 }
             }
             else
             {
-                // Normal game end
                 if (session.Player1TotalScore > session.Player2TotalScore)
                 {
                     p1XpChange += 50;
-                    winnerId = p1Id;
+                    winnerId = p1Profile?.Id;
                 }
                 else if (session.Player2TotalScore > session.Player1TotalScore)
                 {
                     p2XpChange += 50;
-                    winnerId = p2Id;
+                    winnerId = p2Profile?.Id;
                 }
             }
 
-            // Update XP in database
-            await gamification.UpdateUserXpAsync(p1Id, p1XpChange);
-            await gamification.UpdateUserXpAsync(p2Id, p2XpChange);
-            
-            // Update Elo ratings
-            if (winnerId == p1Id) 
-                await gamification.ProcessDuelResultAsync(p1Id, p2Id);
-            else if (winnerId == p2Id) 
-                await gamification.ProcessDuelResultAsync(p2Id, p1Id);
-
-            // Save DuelMatch record for activity tracking
-            var duelMatch = new Domain.Entities.Gamification.DuelMatch
+            if (p1Profile != null)
             {
-                Id = Guid.NewGuid(),
-                Player1Id = p1Id,
-                Player2Id = p2Id,
-                WinnerId = winnerId,
-                CreatedAt = session.MatchFoundAt ?? DateTime.UtcNow,
-                StartedAt = session.MatchFoundAt,
-                FinishedAt = DateTime.UtcNow,
-                Player1Score = session.Player1TotalScore,
-                Player2Score = session.Player2TotalScore,
-                QuestionIdsJson = System.Text.Json.JsonSerializer.Serialize(session.Questions.Select(q => q.Id).ToList()),
-                TimeLimit = 30,
-                Status = Domain.Enums.DuelStatus.Finished
-            };
+                p1Profile.XP += p1XpChange;
+                p1Profile.WeeklyXP += p1XpChange;
+                Console.WriteLine($"[DuelManager] Player1 XP Updated: UserId={p1GuidId}, XPChange={p1XpChange}, NewXP={p1Profile.XP}");
+            }
 
-            context.DuelMatches.Add(duelMatch);
+            if (p2Profile != null)
+            {
+                p2Profile.XP += p2XpChange;
+                p2Profile.WeeklyXP += p2XpChange;
+                Console.WriteLine($"[DuelManager] Player2 XP Updated: UserId={p2GuidId}, XPChange={p2XpChange}, NewXP={p2Profile.XP}");
+            }
+
+            if (p1Profile != null && p2Profile != null)
+            {
+                if (winnerId == p1Profile.Id)
+                {
+                    p1Profile.EloRating += 25;
+                    p2Profile.EloRating = Math.Max(0, p2Profile.EloRating - 15);
+                }
+                else if (winnerId == p2Profile.Id)
+                {
+                    p2Profile.EloRating += 25;
+                    p1Profile.EloRating = Math.Max(0, p1Profile.EloRating - 15);
+                }
+            }
+
+            if (p1Profile != null)
+            {
+                var p1TestSession = new Domain.Entities.Testing.TestSession
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = p1Profile.UserId,  // AppUser.Id, not UserProfile.Id
+                    StartedAt = session.MatchFoundAt ?? DateTime.UtcNow,
+                    FinishedAt = DateTime.UtcNow,
+                    TotalScore = session.Player1TotalScore,
+                    Mode = Domain.Enums.TestMode.Duel,
+                    QuestionIdsJson = System.Text.Json.JsonSerializer.Serialize(session.Questions.Select(q => q.Id).ToList()),
+                    IsCompleted = true
+                };
+
+                context.TestSessions.Add(p1TestSession);
+
+                foreach (var answerRecord in session.Player1AnswerHistory)
+                {
+                    context.UserAnswers.Add(new Domain.Entities.Testing.UserAnswer
+                    {
+                        TestSessionId = p1TestSession.Id,
+                        QuestionId = answerRecord.QuestionId,
+                        IsCorrect = answerRecord.IsCorrect,
+                        TextResponse = answerRecord.UserAnswer,
+                        TimeSpentSeconds = answerRecord.TimeSpentSeconds
+                    });
+                }
+            }
+
+            if (p2Profile != null)
+            {
+                var p2TestSession = new Domain.Entities.Testing.TestSession
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = p2Profile.UserId,  // AppUser.Id, not UserProfile.Id
+                    StartedAt = session.MatchFoundAt ?? DateTime.UtcNow,
+                    FinishedAt = DateTime.UtcNow,
+                    TotalScore = session.Player2TotalScore,
+                    Mode = Domain.Enums.TestMode.Duel,
+                    QuestionIdsJson = System.Text.Json.JsonSerializer.Serialize(session.Questions.Select(q => q.Id).ToList()),
+                    IsCompleted = true
+                };
+
+                context.TestSessions.Add(p2TestSession);
+
+                foreach (var answerRecord in session.Player2AnswerHistory)
+                {
+                    context.UserAnswers.Add(new Domain.Entities.Testing.UserAnswer
+                    {
+                        TestSessionId = p2TestSession.Id,
+                        QuestionId = answerRecord.QuestionId,
+                        IsCorrect = answerRecord.IsCorrect,
+                        TextResponse = answerRecord.UserAnswer,
+                        TimeSpentSeconds = answerRecord.TimeSpentSeconds
+                    });
+                }
+            }
+
+            if (p1Profile != null && p2Profile != null)
+            {
+                var duelMatch = new Domain.Entities.Gamification.DuelMatch
+                {
+                    Id = Guid.NewGuid(),
+                    Player1Id = p1Profile.UserId,  // Use AppUser.Id from UserProfile
+                    Player2Id = p2Profile.UserId,  // Use AppUser.Id from UserProfile
+                    WinnerId = winnerId.HasValue ? (winnerId.Value == p1Profile.Id ? p1Profile.UserId : p2Profile.UserId) : (Guid?)null,
+                    CreatedAt = session.MatchFoundAt ?? DateTime.UtcNow,
+                    StartedAt = session.MatchFoundAt ?? DateTime.UtcNow,
+                    FinishedAt = DateTime.UtcNow,
+                    Player1Score = session.Player1TotalScore,
+                    Player2Score = session.Player2TotalScore,
+                    QuestionIdsJson = System.Text.Json.JsonSerializer.Serialize(session.Questions.Select(q => q.Id).ToList()),
+                    Status = DuelStatus.Finished
+                };
+
+                context.DuelMatches.Add(duelMatch);
+            }
+
             await context.SaveChangesAsync();
 
-            Console.WriteLine($"[DuelManager] DuelMatch saved. Winner={winnerId}, P1_XP_Change={p1XpChange}, P2_XP_Change={p2XpChange}");
+            Console.WriteLine($"[DuelManager] Duel data saved successfully. Winner={winnerId}, P1_XP={p1XpChange}, P2_XP={p2XpChange}");
         }
         catch (Exception ex)
         {
@@ -487,41 +602,59 @@ public class DuelManager(IServiceScopeFactory scopeFactory)
 
         if (!isPlayer1 && !isPlayer2) return result;
         
-        // Check if player already answered
+        
         if (isPlayer1 && session.Player1Answered) return result;
         if (isPlayer2 && session.Player2Answered) return result;
 
         Console.WriteLine($"[DuelManager] SUDDEN DEATH TIMEOUT: Player {playerId} lost the duel by timeout on Q{questionIndex}");
 
-        // Immediately terminate the duel
+        
         session.Status = DuelStatus.Finished;
         session.TimedOutPlayerId = playerId;
-        session.QuestionTimerCts?.Cancel(); // Stop timer
+        session.QuestionTimerCts?.Cancel();
 
-        // Mark as answered with 0 points
-        if (isPlayer1)
+        if (questionIndex < session.Questions.Count)
         {
-            session.Player1Answered = true;
-            session.Player1LastResult = new DuelSubmissionResult
+            var currentQuestion = session.Questions[questionIndex];
+
+            if (isPlayer1)
             {
-                Success = true,
-                IsCorrect = false,
-                AddedScore = 0,
-                CurrentScore = session.Player1TotalScore,
-                OpponentScore = session.Player2TotalScore
-            };
-        }
-        else
-        {
-            session.Player2Answered = true;
-            session.Player2LastResult = new DuelSubmissionResult
+                session.Player1Answered = true;
+                session.Player1AnswerHistory.Add(new QuestionAnswerRecord
+                {
+                    QuestionId = currentQuestion.Id,
+                    IsCorrect = false,
+                    UserAnswer = null,
+                    TimeSpentSeconds = 30
+                });
+                session.Player1LastResult = new DuelSubmissionResult
+                {
+                    Success = true,
+                    IsCorrect = false,
+                    AddedScore = 0,
+                    CurrentScore = session.Player1TotalScore,
+                    OpponentScore = session.Player2TotalScore
+                };
+            }
+            else
             {
-                Success = true,
-                IsCorrect = false,
-                AddedScore = 0,
-                CurrentScore = session.Player2TotalScore,
-                OpponentScore = session.Player1TotalScore
-            };
+                session.Player2Answered = true;
+                session.Player2AnswerHistory.Add(new QuestionAnswerRecord
+                {
+                    QuestionId = currentQuestion.Id,
+                    IsCorrect = false,
+                    UserAnswer = null,
+                    TimeSpentSeconds = 30
+                });
+                session.Player2LastResult = new DuelSubmissionResult
+                {
+                    Success = true,
+                    IsCorrect = false,
+                    AddedScore = 0,
+                    CurrentScore = session.Player2TotalScore,
+                    OpponentScore = session.Player1TotalScore
+                };
+            }
         }
 
         session.AnsweredCount++;
@@ -533,7 +666,7 @@ public class DuelManager(IServiceScopeFactory scopeFactory)
         result.OpponentScore = isPlayer1 ? session.Player2TotalScore : session.Player1TotalScore;
         result.IsDuelFinished = true;
 
-        // Process game end immediately (xp penalty/bonus)
+        
         _ = ProcessGameEndAsync(session);
 
         return result;
