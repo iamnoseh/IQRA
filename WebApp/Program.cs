@@ -50,6 +50,8 @@ using (var scope = app.Services.CreateScope())
     {
         await context.Database.MigrateAsync();
         await SeedData.SeedAsync(context, userManager);
+        var schoolScoreService = services.GetRequiredService<ISchoolScoreService>();
+        await schoolScoreService.SyncAllSchoolsStatsAsync();
     }
     catch (Exception ex)
     {

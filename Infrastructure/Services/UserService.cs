@@ -12,7 +12,8 @@ namespace Infrastructure.Services;
 public partial class UserService(
     ApplicationDbContext context,
     UserManager<AppUser> userManager,
-    IFileStorageService fileStorageService) : IUserService
+    IFileStorageService fileStorageService,
+    ISchoolScoreService schoolScoreService) : IUserService
 {
     public async Task<Response<UserProfileDto>> GetProfileAsync(Guid userId)
     {
@@ -55,8 +56,16 @@ public partial class UserService(
         if (!string.IsNullOrWhiteSpace(request.District))
             profile.District = request.District;
 
-        if (request.SchoolId.HasValue)
+        if (request.SchoolId.HasValue && profile.SchoolId != request.SchoolId)
+        {
+            if (profile.SchoolId.HasValue)
+            {
+                await schoolScoreService.UpdateStudentCountAsync(profile.SchoolId.Value, -1);
+            }
+            
+            await schoolScoreService.UpdateStudentCountAsync(request.SchoolId.Value, 1);
             profile.SchoolId = request.SchoolId;
+        }
 
         if (request.Grade.HasValue)
             profile.Grade = request.Grade;

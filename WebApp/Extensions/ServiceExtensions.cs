@@ -30,6 +30,7 @@ public static class ServiceExtensions
         services.AddScoped<ILeagueService, LeagueService>();
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<IMotivationService, MotivationService>();
+        services.AddScoped<ISchoolScoreService, SchoolScoreService>();
         services.AddSingleton<DuelManager>();
         
         services.AddHttpClient<IAiService, GoogleGeminiAiService>(client =>

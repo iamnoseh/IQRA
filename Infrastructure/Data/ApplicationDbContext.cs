@@ -330,6 +330,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.Property(s => s.Name).IsRequired().HasMaxLength(200);
             entity.Property(s => s.Province).IsRequired().HasMaxLength(50);
             entity.Property(s => s.District).IsRequired().HasMaxLength(50);
+            entity.Property(s => s.TotalXP).HasDefaultValue(0L);
+            entity.Property(s => s.StudentCount).HasDefaultValue(0);
         });
 
         modelBuilder.Entity<University>(entity =>

@@ -462,6 +462,16 @@ public class DuelManager(IServiceScopeFactory scopeFactory)
                 }
             }
 
+            var schoolScoreService = scope.ServiceProvider.GetRequiredService<ISchoolScoreService>();
+            if (p1Profile?.SchoolId != null && p1XpChange > 0)
+            {
+                await schoolScoreService.AddSchoolPointsAsync(p1Profile.SchoolId.Value, p1XpChange);
+            }
+            if (p2Profile?.SchoolId != null && p2XpChange > 0)
+            {
+                await schoolScoreService.AddSchoolPointsAsync(p2Profile.SchoolId.Value, p2XpChange);
+            }
+
             if (p1Profile != null)
             {
                 var p1TestSession = new Domain.Entities.Testing.TestSession
