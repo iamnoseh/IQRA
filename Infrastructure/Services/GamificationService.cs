@@ -68,6 +68,7 @@ public class GamificationService : IGamificationService
 
         userProfile.XP += totalXp;
         userProfile.WeeklyXP += totalXp;
+        userProfile.LastTestDate = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
 

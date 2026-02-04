@@ -131,6 +131,7 @@ public class DuelManager(IServiceScopeFactory scopeFactory)
                 }).ToList();
                 
                 session.QuestionsReady = true;
+                session.SubjectId = subjectId;
                 Console.WriteLine($"[DuelManager] Questions ready for session {sessionId}. Count={session.Questions.Count}");
             }
         }
@@ -438,6 +439,7 @@ public class DuelManager(IServiceScopeFactory scopeFactory)
             {
                 p1Profile.XP += p1XpChange;
                 p1Profile.WeeklyXP += p1XpChange;
+                p1Profile.LastTestDate = DateTime.UtcNow;
                 Console.WriteLine($"[DuelManager] Player1 XP Updated: UserId={p1GuidId}, XPChange={p1XpChange}, NewXP={p1Profile.XP}");
             }
 
@@ -445,6 +447,7 @@ public class DuelManager(IServiceScopeFactory scopeFactory)
             {
                 p2Profile.XP += p2XpChange;
                 p2Profile.WeeklyXP += p2XpChange;
+                p2Profile.LastTestDate = DateTime.UtcNow;
                 Console.WriteLine($"[DuelManager] Player2 XP Updated: UserId={p2GuidId}, XPChange={p2XpChange}, NewXP={p2Profile.XP}");
             }
 
@@ -482,6 +485,7 @@ public class DuelManager(IServiceScopeFactory scopeFactory)
                     FinishedAt = DateTime.UtcNow,
                     TotalScore = session.Player1TotalScore,
                     Mode = Domain.Enums.TestMode.Duel,
+                    SubjectId = session.SubjectId,
                     QuestionIdsJson = System.Text.Json.JsonSerializer.Serialize(session.Questions.Select(q => q.Id).ToList()),
                     IsCompleted = true
                 };
@@ -511,6 +515,7 @@ public class DuelManager(IServiceScopeFactory scopeFactory)
                     FinishedAt = DateTime.UtcNow,
                     TotalScore = session.Player2TotalScore,
                     Mode = Domain.Enums.TestMode.Duel,
+                    SubjectId = session.SubjectId,
                     QuestionIdsJson = System.Text.Json.JsonSerializer.Serialize(session.Questions.Select(q => q.Id).ToList()),
                     IsCompleted = true
                 };

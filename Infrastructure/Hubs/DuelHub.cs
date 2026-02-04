@@ -131,7 +131,6 @@ public class DuelHub : Hub
         
         session.CurrentQuestionStartedAt = DateTime.UtcNow;
         
-        // Send QuestionStartEvent
         var questionEvent = new QuestionStartEvent
         {
             Question = session.Questions[questionIndex],

@@ -49,14 +49,21 @@ public class SchoolScoreService(ApplicationDbContext context, ILogger<SchoolScor
         {
             logger.LogInformation("Starting full synchronization of school statistics...");
             
-           
+            // Atomic update for StudentCount and TotalXP using subqueries
+            // This works for PostgreSQL (used in migrations)
             await context.Database.ExecuteSqlRawAsync(
                 @"UPDATE ""Schools"" s 
-                  SET ""StudentCount"" = (
-                      SELECT COUNT(*) 
-                      FROM ""UserProfiles"" u 
-                      WHERE u.""SchoolId"" = s.""Id""
-                  )");
+                  SET 
+                    ""StudentCount"" = (
+                        SELECT COUNT(*) 
+                        FROM ""UserProfiles"" u 
+                        WHERE u.""SchoolId"" = s.""Id""
+                    ),
+                    ""TotalXP"" = (
+                        SELECT COALESCE(SUM(u.""XP""), 0)
+                        FROM ""UserProfiles"" u 
+                        WHERE u.""SchoolId"" = s.""Id""
+                    )");
 
             logger.LogInformation("School statistics synchronization completed successfully.");
         }

@@ -1,3 +1,4 @@
+using Application.DTOs.Testing;
 using Domain.Enums;
 
 namespace Application.DTOs.Users;
@@ -29,6 +30,8 @@ public class UserProfileDto
     public int? CurrentLeagueId { get; set; }
     public string? CurrentLeagueName { get; set; }
     public DateTime? LastTestDate { get; set; }
+    public List<TestSessionDto> LastTestResults { get; set; } = new();
+    public DateTime RegistrationDate { get; set; }
     public bool IsPremium { get; set; }
     public DateTime? PremiumExpiresAt { get; set; }
 }

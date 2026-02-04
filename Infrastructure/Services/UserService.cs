@@ -23,23 +23,56 @@ public partial class UserService(
                 .ThenInclude(m => m!.Faculty)
                 .ThenInclude(f => f.University)
             .Include(p => p.CurrentLeague)
+            .Include(p => p.User)
             .FirstOrDefaultAsync(p => p.UserId == userId);
 
         if (profile == null)
-            return new Response<UserProfileDto>(HttpStatusCode.NotFound, "Профил ёфт нашуд");
+            return new Response<UserProfileDto>(HttpStatusCode.NotFound, "Профиль не найден");
+
+        if (profile.LastTestDate == null)
+        {
+            var latestSession = await context.TestSessions
+                .Where(s => s.UserId == profile.UserId && s.IsCompleted)
+                .OrderByDescending(s => s.FinishedAt)
+                .FirstOrDefaultAsync();
+            
+            if (latestSession != null)
+            {
+                profile.LastTestDate = latestSession.FinishedAt;
+                await context.SaveChangesAsync();
+            }
+        }
 
         var dto = MapToDto(profile);
+
+        var lastSessions = await context.TestSessions
+            .Include(s => s.Subject)
+            .Where(s => s.UserId == profile.UserId && s.IsCompleted)
+            .OrderByDescending(s => s.FinishedAt)
+            .Take(5)
+            .Select(s => new Application.DTOs.Testing.TestSessionDto
+            {
+                Id = s.Id,
+                Mode = s.Mode,
+                ClusterNumber = s.ClusterNumber,
+                TotalScore = s.TotalScore,
+                SubjectId = s.SubjectId,
+                SubjectName = s.Subject != null ? s.Subject.Name : null,
+                StartedAt = s.StartedAt,
+                FinishedAt = s.FinishedAt
+            })
+            .ToListAsync();
+
+        dto.LastTestResults = lastSessions;
         return new Response<UserProfileDto>(dto);
     }
 
     public async Task<Response<bool>> UpdateProfileAsync(Guid userId, UpdateProfileRequest request)
     {
-        
-        
         var profile = await context.UserProfiles.FirstOrDefaultAsync(p => p.UserId == userId);
         
         if (profile == null)
-            return new Response<bool>(HttpStatusCode.NotFound, "Профил ёфт нашуд");
+            return new Response<bool>(HttpStatusCode.NotFound, "Профиль не найден");
 
         if (!string.IsNullOrWhiteSpace(request.FirstName))
             profile.FirstName = request.FirstName;
@@ -109,18 +142,16 @@ public partial class UserService(
             profile.AvatarUrl = avatarPath;
         }
 
-        var res = await context.SaveChangesAsync();
+        await context.SaveChangesAsync();
         
-        return res > 0
-        ? new Response<bool>(true) { Message = "Профил навсозӣ шуд" }
-        : new Response<bool>(false) { Message = "Профил навсозӣ нашуд" };
+        return new Response<bool>(true) { Message = "Профиль успешно обновлен" };
     }
 
     public async Task<Response<UserProfileDto>> GetProfileByUsernameAsync(string username)
     {
         var user = await userManager.FindByNameAsync(username);
         if (user == null)
-            return new Response<UserProfileDto>(HttpStatusCode.NotFound, "Корбар ёфт нашуд");
+            return new Response<UserProfileDto>(HttpStatusCode.NotFound, "Пользователь не найден");
 
         return await GetProfileAsync(user.Id);
     }
@@ -150,7 +181,8 @@ public partial class UserService(
             EloRating = profile.EloRating,
             CurrentLeagueId = profile.CurrentLeagueId,
             CurrentLeagueName = profile.CurrentLeague?.Name,
-            LastTestDate = profile.LastTestDate
+            LastTestDate = profile.LastTestDate,
+            RegistrationDate = profile.User?.CreatedAt ?? DateTime.MinValue
         };
     }
 }

@@ -17,14 +17,14 @@ public class UserController(IUserService userService) : ControllerBase
         var userIdClaim = User.FindFirst("UserId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         
         if (string.IsNullOrWhiteSpace(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
-            return Unauthorized(new { message = "Корбар муайян карда нашуд" });
+            return Unauthorized(new { message = "Пользователь не определен" });
 
         var result = await userService.GetProfileAsync(userId);
         
         if (!result.Success)
             return NotFound(new { message = result.Message });
 
-        return Ok(new { message = "Профил дарёфт шуд", data = result.Data });
+        return Ok(new { message = "Профиль найден", data = result.Data });
     }
 
     [HttpPatch("profile")]
@@ -33,7 +33,7 @@ public class UserController(IUserService userService) : ControllerBase
         var userIdClaim = User.FindFirst("UserId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         
         if (string.IsNullOrWhiteSpace(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
-            return Unauthorized(new { message = "Корбар муайян карда нашуд" });
+            return Unauthorized(new { message = "Пользователь не определен" });
 
         var result = await userService.UpdateProfileAsync(userId, request);
         
@@ -52,7 +52,7 @@ public class UserController(IUserService userService) : ControllerBase
         if (!result.Success)
             return NotFound(new { message = result.Message });
 
-        return Ok(new { message = "Профил дарёфт шуд", data = result.Data });
+        return Ok(new { message = "Профиль найден", data = result.Data });
     }
 
     [HttpGet("activity")]
@@ -61,14 +61,14 @@ public class UserController(IUserService userService) : ControllerBase
         var userIdClaim = User.FindFirst("UserId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         
         if (string.IsNullOrWhiteSpace(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
-            return Unauthorized(new { message = "Корбар муайян карда нашуд" });
+            return Unauthorized(new { message = "Пользователь не определен" });
 
         var result = await userService.GetUserActivityAsync(userId);
         
         if (!result.Success)
             return NotFound(new { message = result.Message });
 
-        return Ok(new { message = "Активияти корбар дарёфт шуд", data = result.Data });
+        return Ok(new { message = "Активность пользователя найдена", data = result.Data });
     }
 
     [HttpGet("test-activity")]
@@ -77,14 +77,14 @@ public class UserController(IUserService userService) : ControllerBase
         var userIdClaim = User.FindFirst("UserId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         
         if (string.IsNullOrWhiteSpace(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
-            return Unauthorized(new { message = "Корбар муайян карда нашуд" });
+            return Unauthorized(new { message = "Пользователь не определен" });
 
         var result = await userService.GetTestActivityAsync(userId, days);
         
         if (!result.Success)
             return NotFound(new { message = result.Message });
 
-        return Ok(new { message = "Статистикаи тестҳо дарёфт шуд", data = result.Data });
+        return Ok(new { message = "Статистика тестов найдена", data = result.Data });
     }
 
     [HttpGet("notifications")]
@@ -93,7 +93,7 @@ public class UserController(IUserService userService) : ControllerBase
         var userIdClaim = User.FindFirst("UserId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         
         if (string.IsNullOrWhiteSpace(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
-            return Unauthorized(new { message = "Корбар муайян карда нашуд" });
+            return Unauthorized(new { message = "Пользователь не определен" });
 
         var result = await notificationService.GetUserNotificationsAsync(userId);
         return Ok(result);

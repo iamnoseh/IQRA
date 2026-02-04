@@ -45,6 +45,7 @@ public class DuelSession
     
     public string? DisconnectedPlayerId { get; set; }
     public string? TimedOutPlayerId { get; set; }
+    public int? SubjectId { get; set; }
 }
 
 public class DuelSubmissionResult
