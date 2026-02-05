@@ -76,7 +76,17 @@ app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 
 
-app.UseStaticFiles();
+var staticFilesPath = Path.Combine(builder.Environment.ContentRootPath, "wwwroot");
+if (!Directory.Exists(staticFilesPath))
+{
+    Directory.CreateDirectory(staticFilesPath);
+}
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(staticFilesPath),
+    RequestPath = ""
+});
 
 app.UseAuthentication();
 app.UseAuthorization();
