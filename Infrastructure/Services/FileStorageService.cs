@@ -16,7 +16,10 @@ public class FileStorageService(IWebHostEnvironment environment) : IFileStorageS
 
         var webRootPath = GetWebRootPath();
         var uploadsFolder = Path.Combine(webRootPath, folderName);
-
+        
+        // Логируем путь для отладки
+        Console.WriteLine($"[DEBUG] Saving file to: {uploadsFolder}");
+        
         try
         {
             if (!Directory.Exists(uploadsFolder))
