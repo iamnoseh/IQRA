@@ -5,7 +5,6 @@ namespace Application.DTOs.Auth;
 public class RegisterRequest
 {
     [Required(ErrorMessage = "Рақами телефон ҳатмист")]
-    [Phone(ErrorMessage = "Рақами телефон нодуруст аст")]
     public string PhoneNumber { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "Ном ҳатмист")]

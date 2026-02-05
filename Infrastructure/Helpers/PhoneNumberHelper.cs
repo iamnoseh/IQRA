@@ -7,7 +7,14 @@ public static class PhoneNumberHelper
         if (string.IsNullOrWhiteSpace(phoneNumber))
             return phoneNumber;
 
-        var cleaned = phoneNumber.Trim().Replace(" ", "").Replace("-", "");
+        // Удаляем все кроме цифр и плюса
+        var cleaned = new string(phoneNumber.Where(c => char.IsDigit(c) || c == '+').ToArray());
+        
+        // Если плюс есть не в начале, удаляем его
+        if (cleaned.Contains('+') && !cleaned.StartsWith("+"))
+        {
+            cleaned = new string(cleaned.Where(char.IsDigit).ToArray());
+        }
 
         if (cleaned.StartsWith("+992"))
             return cleaned;
@@ -18,10 +25,11 @@ public static class PhoneNumberHelper
         if (cleaned.StartsWith("00992"))
             return "+" + cleaned.Substring(2);
 
-        if (cleaned.Length == 9 && cleaned.StartsWith("9"))
+        // Если введено 9 цифр (например 937001122), добавляем код страны
+        if (cleaned.Length == 9 && char.IsDigit(cleaned[0]))
             return "+992" + cleaned;
 
-        return phoneNumber;
+        return cleaned;
     }
 
     public static bool IsValidTajikPhoneNumber(string phoneNumber)
@@ -31,13 +39,11 @@ public static class PhoneNumberHelper
 
         var normalized = NormalizePhoneNumber(phoneNumber);
 
-        if (!normalized.StartsWith("+992"))
+        // Формат Таджикистана: +992 и 9 цифр номера
+        if (!normalized.StartsWith("+992") || normalized.Length != 13)
             return false;
 
-        if (normalized.Length != 13)
-            return false;
-
-        var number = normalized.Substring(4);
-        return number.All(char.IsDigit) && (number.StartsWith("9") || number.StartsWith("5"));
+        var numberPart = normalized.Substring(4);
+        return numberPart.All(char.IsDigit);
     }
 }
