@@ -32,9 +32,11 @@ public class AuthService(
 
     public async Task<AuthResponse> LoginAsync(LoginDto loginDto)
     {
+        var normalizedUsername = PhoneNumberHelper.NormalizePhoneNumber(loginDto.Username);
+        
         var user = await userManager.Users
             .Include(u => u.Profile)
-            .FirstOrDefaultAsync(u => u.UserName == loginDto.Username);
+            .FirstOrDefaultAsync(u => u.UserName == normalizedUsername || u.UserName == loginDto.Username);
         
         if (user == null)
             return CreateErrorResponse(Messages.Auth.InvalidCredentials);
