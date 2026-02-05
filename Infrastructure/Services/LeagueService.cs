@@ -53,6 +53,7 @@ public class LeagueService(ApplicationDbContext context, IGamificationService ga
     public async Task<Response<List<LeagueStandingDto>>> GetStandingsAsync(Guid userId, int leagueId)
     {
         var users = await context.UserProfiles
+            .Include(p => p.School)
             .Where(p => p.CurrentLeagueId == leagueId)
             .OrderByDescending(p => p.WeeklyXP)
             .ToListAsync();
@@ -72,6 +73,7 @@ public class LeagueService(ApplicationDbContext context, IGamificationService ga
             {
                 UserId = p.UserId,
                 UserFullName = $"{p.FirstName} {p.LastName}",
+                SchoolName = p.School?.Name,
                 AvatarUrl = p.AvatarUrl,
                 WeeklyXP = p.WeeklyXP,
                 Rank = currentRank,

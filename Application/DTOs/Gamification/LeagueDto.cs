@@ -14,6 +14,7 @@ public class LeagueStandingDto
 {
     public Guid UserId { get; set; }
     public string UserFullName { get; set; } = string.Empty;
+    public string? SchoolName { get; set; }
     public string? AvatarUrl { get; set; }
     public int WeeklyXP { get; set; }
     public int Rank { get; set; }
