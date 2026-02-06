@@ -14,3 +14,9 @@ public class CreateSubjectRequest
     public string Name { get; set; } = string.Empty;
     public IFormFile? Icon { get; set; }
 }
+
+public class UpdateSubjectRequest
+{
+    public string Name { get; set; } = string.Empty;
+    public IFormFile? Icon { get; set; }
+}

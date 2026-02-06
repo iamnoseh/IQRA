@@ -42,4 +42,34 @@ public class SubjectController(ISubjectService subjectService) : ControllerBase
 
         return Ok(new { message = result.Message, data = result.Data });
     }
+
+    [HttpPut("{id}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> Update(int id, [FromForm] UpdateSubjectRequest request)
+    {
+        var result = await subjectService.UpdateSubjectAsync(id, request);
+        
+        if (!result.Success)
+            return result.StatusCode == (int)System.Net.HttpStatusCode.NotFound 
+                ? NotFound(new { message = result.Message })
+                : result.StatusCode == (int)System.Net.HttpStatusCode.Conflict 
+                    ? Conflict(new { message = result.Message })
+                    : BadRequest(new { message = result.Message });
+
+        return Ok(new { message = result.Message, data = result.Data });
+    }
+
+    [HttpDelete("{id}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var result = await subjectService.DeleteSubjectAsync(id);
+        
+        if (!result.Success)
+            return result.StatusCode == (int)System.Net.HttpStatusCode.NotFound 
+                ? NotFound(new { message = result.Message })
+                : BadRequest(new { message = result.Message });
+
+        return Ok(new { message = result.Message });
+    }
 }
