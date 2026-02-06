@@ -31,6 +31,7 @@ public static class ServiceExtensions
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<IMotivationService, MotivationService>();
         services.AddScoped<ISchoolScoreService, SchoolScoreService>();
+        services.AddScoped<ISchoolService, SchoolService>();
         services.AddSingleton<DuelManager>();
         
         services.AddHttpClient<IAiService, GoogleGeminiAiService>(client =>
