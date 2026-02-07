@@ -22,7 +22,6 @@ public class SchoolService(ApplicationDbContext context) : ISchoolService
 
         var rankedSchools = await context.Schools
             .AsNoTracking()
-            .Where(s => s.StudentCount > 0)
             .Select(s => new
             {
                 s.Id,
@@ -31,7 +30,7 @@ public class SchoolService(ApplicationDbContext context) : ISchoolService
                 s.District,
                 s.TotalXP,
                 s.StudentCount,
-                AverageXP = (double)s.TotalXP / s.StudentCount
+                AverageXP = s.StudentCount > 0 ? (double)s.TotalXP / s.StudentCount : 0
             })
             .OrderByDescending(s => s.AverageXP)
             .ToListAsync();
