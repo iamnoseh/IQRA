@@ -39,14 +39,8 @@ public class ClusterService(ApplicationDbContext context, IFileStorageService fi
 
     public async Task<Response<ClusterDto>> CreateClusterAsync(CreateClusterRequest request)
     {
-        // Проверка на существующий ClusterNumber
-        var exists = await context.Clusters
-            .AnyAsync(c => c.ClusterNumber == request.ClusterNumber);
-
-        if (exists)
-            return new Response<ClusterDto>(
-                HttpStatusCode.BadRequest, 
-                $"Кластер бо рақами {request.ClusterNumber} аллакай мавҷуд аст");
+        var maxClusterNumber = await context.Clusters
+            .MaxAsync(c => (int?)c.ClusterNumber) ?? 0;
 
         string? imageUrl = null;
         if (request.Image != null)
@@ -56,7 +50,7 @@ public class ClusterService(ApplicationDbContext context, IFileStorageService fi
 
         var cluster = new Cluster
         {
-            ClusterNumber = request.ClusterNumber,
+            ClusterNumber = maxClusterNumber + 1,
             Name = request.Name,
             Description = request.Description,
             ImageUrl = imageUrl ?? string.Empty,
@@ -66,7 +60,6 @@ public class ClusterService(ApplicationDbContext context, IFileStorageService fi
         context.Clusters.Add(cluster);
         await context.SaveChangesAsync();
 
-        // Загрузка связанных данных для DTO
         await context.Entry(cluster)
             .Collection(c => c.ClusterSubjects)
             .LoadAsync();
@@ -113,13 +106,15 @@ public class ClusterService(ApplicationDbContext context, IFileStorageService fi
 
     public async Task<Response<bool>> DeleteClusterAsync(int id)
     {
-        var cluster = await context.Clusters.FindAsync(id);
+        var cluster = await context.Clusters
+            .Include(c => c.ClusterSubjects)
+            .FirstOrDefaultAsync(c => c.Id == id);
 
         if (cluster == null)
             return new Response<bool>(HttpStatusCode.NotFound, "Кластер ёфт нашуд");
 
-        // Мягкое удаление
-        cluster.IsActive = false;
+        context.ClusterSubjects.RemoveRange(cluster.ClusterSubjects);
+        context.Clusters.Remove(cluster);
         await context.SaveChangesAsync();
 
         return new Response<bool>(true)
@@ -138,7 +133,6 @@ public class ClusterService(ApplicationDbContext context, IFileStorageService fi
         if (subject == null)
             return new Response<bool>(HttpStatusCode.NotFound, "Фан ёфт нашуд");
 
-        // Проверка на дубликат
         var exists = await context.ClusterSubjects
             .AnyAsync(cs => cs.ClusterId == clusterId 
                          && cs.SubjectId == request.SubjectId 
@@ -147,7 +141,7 @@ public class ClusterService(ApplicationDbContext context, IFileStorageService fi
         if (exists)
             return new Response<bool>(
                 HttpStatusCode.BadRequest, 
-                "Ин фан аллакай ба ин кластер ва қисм илова шудааст");
+                "Ин фан аллакай ба ин қисм илова шудааст");
 
         var clusterSubject = new ClusterSubject
         {

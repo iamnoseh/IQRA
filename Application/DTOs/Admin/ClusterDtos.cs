@@ -6,10 +6,6 @@ namespace Application.DTOs.Admin;
 
 public class CreateClusterRequest
 {
-    [Required(ErrorMessage = "Рақами кластер зарур аст")]
-    [Range(1, 100, ErrorMessage = "Рақами кластер бояд аз 1 то 100 бошад")]
-    public int ClusterNumber { get; set; }
-
     [Required(ErrorMessage = "Номи кластер зарур аст")]
     [StringLength(200, ErrorMessage = "Ном бояд то 200 аломат бошад")]
     public string Name { get; set; } = string.Empty;
