@@ -1,5 +1,6 @@
 using Domain.Enums;
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Http;
 
 namespace Application.DTOs.Admin;
 
@@ -16,7 +17,7 @@ public class CreateClusterRequest
     [StringLength(500, ErrorMessage = "Тавсиф бояд то 500 аломат бошад")]
     public string Description { get; set; } = string.Empty;
 
-    public string? ImageUrl { get; set; }
+    public IFormFile? Image { get; set; }
 }
 
 public class UpdateClusterRequest
@@ -27,7 +28,7 @@ public class UpdateClusterRequest
     [StringLength(500, ErrorMessage = "Тавсиф бояд то 500 аломат бошад")]
     public string? Description { get; set; }
 
-    public string? ImageUrl { get; set; }
+    public IFormFile? Image { get; set; }
 
     public bool? IsActive { get; set; }
 }

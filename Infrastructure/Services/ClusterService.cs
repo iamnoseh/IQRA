@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Services;
 
-public class ClusterService(ApplicationDbContext context) : IClusterService
+public class ClusterService(ApplicationDbContext context, IFileStorageService fileStorageService) : IClusterService
 {
     public async Task<Response<List<ClusterDto>>> GetAllClustersAsync()
     {
@@ -47,12 +47,18 @@ public class ClusterService(ApplicationDbContext context) : IClusterService
                 HttpStatusCode.BadRequest, 
                 $"Кластер бо рақами {request.ClusterNumber} аллакай мавҷуд аст");
 
+        string? imageUrl = null;
+        if (request.Image != null)
+        {
+            imageUrl = await fileStorageService.SaveFileAsync(request.Image, "uploads/clusters");
+        }
+
         var cluster = new Cluster
         {
             ClusterNumber = request.ClusterNumber,
             Name = request.Name,
             Description = request.Description,
-            ImageUrl = request.ImageUrl ?? string.Empty,
+            ImageUrl = imageUrl ?? string.Empty,
             IsActive = true
         };
 
@@ -87,8 +93,11 @@ public class ClusterService(ApplicationDbContext context) : IClusterService
         if (!string.IsNullOrWhiteSpace(request.Description))
             cluster.Description = request.Description;
 
-        if (request.ImageUrl != null)
-            cluster.ImageUrl = request.ImageUrl;
+        if (request.Image != null)
+        {
+            var imageUrl = await fileStorageService.SaveFileAsync(request.Image, "uploads/clusters");
+            cluster.ImageUrl = imageUrl;
+        }
 
         if (request.IsActive.HasValue)
             cluster.IsActive = request.IsActive.Value;
