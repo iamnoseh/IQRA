@@ -7,11 +7,28 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class InitAuth : Migration
+    public partial class RefactorClusterToNTCStructure : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.CreateTable(
+                name: "Clusters",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    ClusterNumber = table.Column<int>(type: "integer", nullable: false),
+                    Name = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    Description = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: false),
+                    ImageUrl = table.Column<string>(type: "text", nullable: false),
+                    IsActive = table.Column<bool>(type: "boolean", nullable: false, defaultValue: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Clusters", x => x.Id);
+                });
+
             migrationBuilder.CreateTable(
                 name: "Leagues",
                 columns: table => new
@@ -20,12 +37,31 @@ namespace Infrastructure.Migrations
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     Name = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
                     MinXP = table.Column<int>(type: "integer", nullable: false),
+                    Color = table.Column<string>(type: "text", nullable: false),
+                    IconUrl = table.Column<string>(type: "text", nullable: false),
+                    PromotionThreshold = table.Column<double>(type: "double precision", nullable: false),
+                    RelegationThreshold = table.Column<double>(type: "double precision", nullable: false),
                     MaxXP = table.Column<int>(type: "integer", nullable: false),
                     BadgeUrl = table.Column<string>(type: "text", nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Leagues", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "MotivationalQuotes",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Content = table.Column<string>(type: "text", nullable: false),
+                    Author = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
+                    Language = table.Column<string>(type: "character varying(10)", maxLength: 10, nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_MotivationalQuotes", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -58,6 +94,23 @@ namespace Infrastructure.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Roles", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Schools",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Name = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    Province = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    District = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    TotalXP = table.Column<long>(type: "bigint", nullable: false, defaultValue: 0L),
+                    StudentCount = table.Column<int>(type: "integer", nullable: false, defaultValue: 0)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Schools", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -107,6 +160,20 @@ namespace Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "Universities",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Name = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    City = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Universities", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Users",
                 columns: table => new
                 {
@@ -114,6 +181,8 @@ namespace Infrastructure.Migrations
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
                     IsActive = table.Column<bool>(type: "boolean", nullable: false, defaultValue: true),
                     Role = table.Column<int>(type: "integer", nullable: false),
+                    Code = table.Column<string>(type: "text", nullable: true),
+                    CodeDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     UserName = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
                     NormalizedUserName = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
                     Email = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
@@ -132,6 +201,32 @@ namespace Infrastructure.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Users", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "TestTemplates",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    ClusterId = table.Column<int>(type: "integer", nullable: false),
+                    ComponentType = table.Column<int>(type: "integer", nullable: false),
+                    Name = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
+                    SingleChoiceCount = table.Column<int>(type: "integer", nullable: false),
+                    ClosedAnswerCount = table.Column<int>(type: "integer", nullable: false),
+                    MatchingCount = table.Column<int>(type: "integer", nullable: false),
+                    DurationMinutes = table.Column<int>(type: "integer", nullable: false),
+                    IsActive = table.Column<bool>(type: "boolean", nullable: false, defaultValue: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_TestTemplates", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_TestTemplates_Clusters_ClusterId",
+                        column: x => x.ClusterId,
+                        principalTable: "Clusters",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -156,6 +251,34 @@ namespace Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "ClusterSubjects",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    ClusterId = table.Column<int>(type: "integer", nullable: false),
+                    SubjectId = table.Column<int>(type: "integer", nullable: false),
+                    ComponentType = table.Column<int>(type: "integer", nullable: false),
+                    DisplayOrder = table.Column<int>(type: "integer", nullable: false, defaultValue: 0)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ClusterSubjects", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ClusterSubjects_Clusters_ClusterId",
+                        column: x => x.ClusterId,
+                        principalTable: "Clusters",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_ClusterSubjects_Subjects_SubjectId",
+                        column: x => x.SubjectId,
+                        principalTable: "Subjects",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Topics",
                 columns: table => new
                 {
@@ -176,6 +299,26 @@ namespace Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "Faculties",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    UniversityId = table.Column<int>(type: "integer", nullable: false),
+                    Name = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Faculties", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Faculties_Universities_UniversityId",
+                        column: x => x.UniversityId,
+                        principalTable: "Universities",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "DuelMatches",
                 columns: table => new
                 {
@@ -187,7 +330,12 @@ namespace Infrastructure.Migrations
                     StartedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     FinishedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     Player1Score = table.Column<int>(type: "integer", nullable: false, defaultValue: 0),
-                    Player2Score = table.Column<int>(type: "integer", nullable: false, defaultValue: 0)
+                    Player2Score = table.Column<int>(type: "integer", nullable: false, defaultValue: 0),
+                    QuestionIdsJson = table.Column<string>(type: "text", nullable: false),
+                    TimeLimit = table.Column<int>(type: "integer", nullable: false),
+                    Player1AnswersJson = table.Column<string>(type: "text", nullable: true),
+                    Player2AnswersJson = table.Column<string>(type: "text", nullable: true),
+                    Status = table.Column<int>(type: "integer", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -213,6 +361,28 @@ namespace Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "Notifications",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    UserId = table.Column<Guid>(type: "uuid", nullable: true),
+                    Title = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    Message = table.Column<string>(type: "text", nullable: false),
+                    IsRead = table.Column<bool>(type: "boolean", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Notifications", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Notifications_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "PaymentTransactions",
                 columns: table => new
                 {
@@ -230,28 +400,6 @@ namespace Infrastructure.Migrations
                     table.PrimaryKey("PK_PaymentTransactions", x => x.Id);
                     table.ForeignKey(
                         name: "FK_PaymentTransactions_Users_UserId",
-                        column: x => x.UserId,
-                        principalTable: "Users",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "TestSessions",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    UserId = table.Column<Guid>(type: "uuid", nullable: false),
-                    StartedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
-                    FinishedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    TotalScore = table.Column<int>(type: "integer", nullable: false, defaultValue: 0),
-                    Mode = table.Column<int>(type: "integer", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_TestSessions", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_TestSessions_Users_UserId",
                         column: x => x.UserId,
                         principalTable: "Users",
                         principalColumn: "Id",
@@ -280,6 +428,26 @@ namespace Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "UserLoginActivities",
+                columns: table => new
+                {
+                    Id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    UserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    LoginDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_UserLoginActivities", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_UserLoginActivities_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "UserLogins",
                 columns: table => new
                 {
@@ -293,34 +461,6 @@ namespace Infrastructure.Migrations
                     table.PrimaryKey("PK_UserLogins", x => new { x.LoginProvider, x.ProviderKey });
                     table.ForeignKey(
                         name: "FK_UserLogins_Users_UserId",
-                        column: x => x.UserId,
-                        principalTable: "Users",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "UserProfiles",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    UserId = table.Column<Guid>(type: "uuid", nullable: false),
-                    FirstName = table.Column<string>(type: "text", nullable: false),
-                    LastName = table.Column<string>(type: "text", nullable: false),
-                    SchoolName = table.Column<string>(type: "text", nullable: false),
-                    City = table.Column<string>(type: "text", nullable: false),
-                    ClusterId = table.Column<int>(type: "integer", nullable: false),
-                    TargetUniversity = table.Column<string>(type: "text", nullable: false),
-                    TargetFaculty = table.Column<string>(type: "text", nullable: false),
-                    TargetPassingScore = table.Column<int>(type: "integer", nullable: false),
-                    XP = table.Column<int>(type: "integer", nullable: false, defaultValue: 0),
-                    AvatarUrl = table.Column<string>(type: "text", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_UserProfiles", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_UserProfiles_Users_UserId",
                         column: x => x.UserId,
                         principalTable: "Users",
                         principalColumn: "Id",
@@ -400,18 +540,60 @@ namespace Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "TestSessions",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    UserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    StartedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
+                    FinishedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    TotalScore = table.Column<int>(type: "integer", nullable: false, defaultValue: 0),
+                    Mode = table.Column<int>(type: "integer", nullable: false),
+                    SubjectId = table.Column<int>(type: "integer", nullable: true),
+                    QuestionIdsJson = table.Column<string>(type: "text", nullable: false),
+                    IsCompleted = table.Column<bool>(type: "boolean", nullable: false),
+                    ClusterId = table.Column<int>(type: "integer", nullable: true),
+                    ComponentType = table.Column<int>(type: "integer", nullable: true),
+                    ClusterNumber = table.Column<int>(type: "integer", nullable: false),
+                    TestTemplateId = table.Column<int>(type: "integer", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_TestSessions", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_TestSessions_Subjects_SubjectId",
+                        column: x => x.SubjectId,
+                        principalTable: "Subjects",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_TestSessions_TestTemplates_TestTemplateId",
+                        column: x => x.TestTemplateId,
+                        principalTable: "TestTemplates",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_TestSessions_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Questions",
                 columns: table => new
                 {
                     Id = table.Column<long>(type: "bigint", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     SubjectId = table.Column<int>(type: "integer", nullable: false),
-                    TopicId = table.Column<int>(type: "integer", nullable: true),
+                    Topic = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
                     Content = table.Column<string>(type: "text", nullable: false),
                     ImageUrl = table.Column<string>(type: "text", nullable: true),
                     Difficulty = table.Column<int>(type: "integer", nullable: false),
                     Type = table.Column<int>(type: "integer", nullable: false),
-                    Explanation = table.Column<string>(type: "text", nullable: false)
+                    Explanation = table.Column<string>(type: "text", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
+                    TopicId = table.Column<int>(type: "integer", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -426,8 +608,29 @@ namespace Infrastructure.Migrations
                         name: "FK_Questions_Topics_TopicId",
                         column: x => x.TopicId,
                         principalTable: "Topics",
+                        principalColumn: "Id");
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Majors",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    FacultyId = table.Column<int>(type: "integer", nullable: false),
+                    Name = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    MinScore2024 = table.Column<int>(type: "integer", nullable: false),
+                    MinScore2025 = table.Column<int>(type: "integer", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Majors", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Majors_Faculties_FacultyId",
+                        column: x => x.FacultyId,
+                        principalTable: "Faculties",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.SetNull);
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -448,6 +651,90 @@ namespace Infrastructure.Migrations
                         name: "FK_AnswerOptions_Questions_QuestionId",
                         column: x => x.QuestionId,
                         principalTable: "Questions",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "RedListQuestions",
+                columns: table => new
+                {
+                    Id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    UserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    QuestionId = table.Column<long>(type: "bigint", nullable: false),
+                    ConsecutiveCorrectCount = table.Column<int>(type: "integer", nullable: false, defaultValue: 0),
+                    AddedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
+                    LastPracticedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_RedListQuestions", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_RedListQuestions_Questions_QuestionId",
+                        column: x => x.QuestionId,
+                        principalTable: "Questions",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_RedListQuestions_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "UserProfiles",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    UserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    FirstName = table.Column<string>(type: "text", nullable: false),
+                    LastName = table.Column<string>(type: "text", nullable: false),
+                    Gender = table.Column<int>(type: "integer", nullable: true),
+                    Province = table.Column<string>(type: "text", nullable: true),
+                    District = table.Column<string>(type: "text", nullable: true),
+                    SchoolId = table.Column<int>(type: "integer", nullable: true),
+                    Grade = table.Column<int>(type: "integer", nullable: true),
+                    ClusterId = table.Column<int>(type: "integer", nullable: true),
+                    TargetUniversity = table.Column<string>(type: "text", nullable: true),
+                    TargetFaculty = table.Column<string>(type: "text", nullable: true),
+                    TargetMajorId = table.Column<int>(type: "integer", nullable: true),
+                    TargetPassingScore = table.Column<int>(type: "integer", nullable: true),
+                    XP = table.Column<int>(type: "integer", nullable: false, defaultValue: 0),
+                    WeeklyXP = table.Column<int>(type: "integer", nullable: false),
+                    DiamondWinStreak = table.Column<int>(type: "integer", nullable: false),
+                    UnlockedBadgesJson = table.Column<string>(type: "text", nullable: false),
+                    DailyStreak = table.Column<int>(type: "integer", nullable: false),
+                    AvatarUrl = table.Column<string>(type: "text", nullable: true),
+                    EloRating = table.Column<int>(type: "integer", nullable: false),
+                    CurrentLeagueId = table.Column<int>(type: "integer", nullable: true),
+                    LastTestDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    LastDayRank = table.Column<int>(type: "integer", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_UserProfiles", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_UserProfiles_Leagues_CurrentLeagueId",
+                        column: x => x.CurrentLeagueId,
+                        principalTable: "Leagues",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_UserProfiles_Majors_TargetMajorId",
+                        column: x => x.TargetMajorId,
+                        principalTable: "Majors",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_UserProfiles_Schools_SchoolId",
+                        column: x => x.SchoolId,
+                        principalTable: "Schools",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_UserProfiles_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
@@ -494,6 +781,23 @@ namespace Infrastructure.Migrations
                 column: "QuestionId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Clusters_ClusterNumber",
+                table: "Clusters",
+                column: "ClusterNumber",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ClusterSubjects_ClusterId_SubjectId_ComponentType",
+                table: "ClusterSubjects",
+                columns: new[] { "ClusterId", "SubjectId", "ComponentType" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ClusterSubjects_SubjectId",
+                table: "ClusterSubjects",
+                column: "SubjectId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_DuelMatches_Player1Id",
                 table: "DuelMatches",
                 column: "Player1Id");
@@ -507,6 +811,21 @@ namespace Infrastructure.Migrations
                 name: "IX_DuelMatches_WinnerId",
                 table: "DuelMatches",
                 column: "WinnerId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Faculties_UniversityId",
+                table: "Faculties",
+                column: "UniversityId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Majors_FacultyId",
+                table: "Majors",
+                column: "FacultyId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Notifications_UserId",
+                table: "Notifications",
+                column: "UserId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_PaymentTransactions_ExternalTransactionId",
@@ -529,6 +848,17 @@ namespace Infrastructure.Migrations
                 column: "TopicId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_RedListQuestions_QuestionId",
+                table: "RedListQuestions",
+                column: "QuestionId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RedListQuestions_UserId_QuestionId",
+                table: "RedListQuestions",
+                columns: new[] { "UserId", "QuestionId" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
                 name: "IX_RoleClaims_RoleId",
                 table: "RoleClaims",
                 column: "RoleId");
@@ -540,9 +870,25 @@ namespace Infrastructure.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_TestSessions_SubjectId",
+                table: "TestSessions",
+                column: "SubjectId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TestSessions_TestTemplateId",
+                table: "TestSessions",
+                column: "TestTemplateId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_TestSessions_UserId",
                 table: "TestSessions",
                 column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TestTemplates_ClusterId_ComponentType",
+                table: "TestTemplates",
+                columns: new[] { "ClusterId", "ComponentType" },
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_Topics_SubjectId",
@@ -570,9 +916,29 @@ namespace Infrastructure.Migrations
                 column: "UserId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_UserLoginActivities_UserId_LoginDate",
+                table: "UserLoginActivities",
+                columns: new[] { "UserId", "LoginDate" });
+
+            migrationBuilder.CreateIndex(
                 name: "IX_UserLogins_UserId",
                 table: "UserLogins",
                 column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_UserProfiles_CurrentLeagueId",
+                table: "UserProfiles",
+                column: "CurrentLeagueId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_UserProfiles_SchoolId",
+                table: "UserProfiles",
+                column: "SchoolId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_UserProfiles_TargetMajorId",
+                table: "UserProfiles",
+                column: "TargetMajorId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_UserProfiles_UserId",
@@ -618,16 +984,25 @@ namespace Infrastructure.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
+                name: "ClusterSubjects");
+
+            migrationBuilder.DropTable(
                 name: "DuelMatches");
 
             migrationBuilder.DropTable(
-                name: "Leagues");
+                name: "MotivationalQuotes");
 
             migrationBuilder.DropTable(
                 name: "NewsItems");
 
             migrationBuilder.DropTable(
+                name: "Notifications");
+
+            migrationBuilder.DropTable(
                 name: "PaymentTransactions");
+
+            migrationBuilder.DropTable(
+                name: "RedListQuestions");
 
             migrationBuilder.DropTable(
                 name: "RoleClaims");
@@ -640,6 +1015,9 @@ namespace Infrastructure.Migrations
 
             migrationBuilder.DropTable(
                 name: "UserClaims");
+
+            migrationBuilder.DropTable(
+                name: "UserLoginActivities");
 
             migrationBuilder.DropTable(
                 name: "UserLogins");
@@ -663,6 +1041,15 @@ namespace Infrastructure.Migrations
                 name: "TestSessions");
 
             migrationBuilder.DropTable(
+                name: "Leagues");
+
+            migrationBuilder.DropTable(
+                name: "Majors");
+
+            migrationBuilder.DropTable(
+                name: "Schools");
+
+            migrationBuilder.DropTable(
                 name: "Roles");
 
             migrationBuilder.DropTable(
@@ -672,10 +1059,22 @@ namespace Infrastructure.Migrations
                 name: "Questions");
 
             migrationBuilder.DropTable(
+                name: "TestTemplates");
+
+            migrationBuilder.DropTable(
                 name: "Users");
 
             migrationBuilder.DropTable(
+                name: "Faculties");
+
+            migrationBuilder.DropTable(
                 name: "Topics");
+
+            migrationBuilder.DropTable(
+                name: "Clusters");
+
+            migrationBuilder.DropTable(
+                name: "Universities");
 
             migrationBuilder.DropTable(
                 name: "Subjects");

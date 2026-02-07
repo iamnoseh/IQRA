@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260108132845_SimplifyRegistrationAndAddGender")]
-    partial class SimplifyRegistrationAndAddGender
+    [Migration("20260207133257_RefactorClusterToNTCStructure")]
+    partial class RefactorClusterToNTCStructure
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -24,6 +24,33 @@ namespace Infrastructure.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+
+            modelBuilder.Entity("Domain.Entities.CMS.MotivationalQuote", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Author")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Language")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("MotivationalQuotes");
+                });
 
             modelBuilder.Entity("Domain.Entities.CMS.NewsItem", b =>
                 {
@@ -138,6 +165,11 @@ namespace Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
                     b.Property<int>("Difficulty")
                         .HasColumnType("integer");
 
@@ -150,6 +182,10 @@ namespace Infrastructure.Migrations
 
                     b.Property<int>("SubjectId")
                         .HasColumnType("integer");
+
+                    b.Property<string>("Topic")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
 
                     b.Property<int?>("TopicId")
                         .HasColumnType("integer");
@@ -225,6 +261,9 @@ namespace Infrastructure.Migrations
                     b.Property<DateTime?>("FinishedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("Player1AnswersJson")
+                        .HasColumnType("text");
+
                     b.Property<Guid>("Player1Id")
                         .HasColumnType("uuid");
 
@@ -232,6 +271,9 @@ namespace Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
                         .HasDefaultValue(0);
+
+                    b.Property<string>("Player2AnswersJson")
+                        .HasColumnType("text");
 
                     b.Property<Guid?>("Player2Id")
                         .HasColumnType("uuid");
@@ -241,8 +283,18 @@ namespace Infrastructure.Migrations
                         .HasColumnType("integer")
                         .HasDefaultValue(0);
 
+                    b.Property<string>("QuestionIdsJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<DateTime?>("StartedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("TimeLimit")
+                        .HasColumnType("integer");
 
                     b.Property<Guid?>("WinnerId")
                         .HasColumnType("uuid");
@@ -270,6 +322,14 @@ namespace Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("Color")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("IconUrl")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<int>("MaxXP")
                         .HasColumnType("integer");
 
@@ -281,9 +341,48 @@ namespace Infrastructure.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
+                    b.Property<double>("PromotionThreshold")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("RelegationThreshold")
+                        .HasColumnType("double precision");
+
                     b.HasKey("Id");
 
                     b.ToTable("Leagues");
+                });
+
+            modelBuilder.Entity("Domain.Entities.Gamification.Notification", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Notifications");
                 });
 
             modelBuilder.Entity("Domain.Entities.Monetization.PaymentTransaction", b =>
@@ -382,22 +481,264 @@ namespace Infrastructure.Migrations
                     b.ToTable("UserSubscriptions");
                 });
 
+            modelBuilder.Entity("Domain.Entities.Reference.Cluster", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ClusterNumber")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("ImageUrl")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClusterNumber")
+                        .IsUnique();
+
+                    b.ToTable("Clusters");
+                });
+
+            modelBuilder.Entity("Domain.Entities.Reference.ClusterSubject", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ClusterId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ComponentType")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("DisplayOrder")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
+                    b.Property<int>("SubjectId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SubjectId");
+
+                    b.HasIndex("ClusterId", "SubjectId", "ComponentType")
+                        .IsUnique();
+
+                    b.ToTable("ClusterSubjects");
+                });
+
+            modelBuilder.Entity("Domain.Entities.Reference.Faculty", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("UniversityId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UniversityId");
+
+                    b.ToTable("Faculties");
+                });
+
+            modelBuilder.Entity("Domain.Entities.Reference.Major", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("FacultyId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("MinScore2024")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("MinScore2025")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FacultyId");
+
+                    b.ToTable("Majors");
+                });
+
+            modelBuilder.Entity("Domain.Entities.Reference.School", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("District")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Province")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<int>("StudentCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
+                    b.Property<long>("TotalXP")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(0L);
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Schools");
+                });
+
+            modelBuilder.Entity("Domain.Entities.Reference.University", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("City")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Universities");
+                });
+
+            modelBuilder.Entity("Domain.Entities.Testing.RedListQuestion", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("AddedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<int>("ConsecutiveCorrectCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
+                    b.Property<DateTime?>("LastPracticedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("QuestionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("QuestionId");
+
+                    b.HasIndex("UserId", "QuestionId")
+                        .IsUnique();
+
+                    b.ToTable("RedListQuestions");
+                });
+
             modelBuilder.Entity("Domain.Entities.Testing.TestSession", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<int?>("ClusterId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ClusterNumber")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("ComponentType")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime?>("FinishedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<bool>("IsCompleted")
+                        .HasColumnType("boolean");
+
                     b.Property<int>("Mode")
                         .HasColumnType("integer");
+
+                    b.Property<string>("QuestionIdsJson")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("StartedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<int?>("SubjectId")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("TestTemplateId")
+                        .HasColumnType("integer");
 
                     b.Property<int>("TotalScore")
                         .ValueGeneratedOnAdd()
@@ -409,9 +750,57 @@ namespace Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("SubjectId");
+
+                    b.HasIndex("TestTemplateId");
+
                     b.HasIndex("UserId");
 
                     b.ToTable("TestSessions");
+                });
+
+            modelBuilder.Entity("Domain.Entities.Testing.TestTemplate", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ClosedAnswerCount")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ClusterId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ComponentType")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("DurationMinutes")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
+                    b.Property<int>("MatchingCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int>("SingleChoiceCount")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClusterId", "ComponentType")
+                        .IsUnique();
+
+                    b.ToTable("TestTemplates");
                 });
 
             modelBuilder.Entity("Domain.Entities.Testing.UserAnswer", b =>
@@ -540,6 +929,29 @@ namespace Infrastructure.Migrations
                     b.ToTable("Users", (string)null);
                 });
 
+            modelBuilder.Entity("Domain.Entities.Users.UserLoginActivity", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("LoginDate")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "LoginDate");
+
+                    b.ToTable("UserLoginActivities");
+                });
+
             modelBuilder.Entity("Domain.Entities.Users.UserProfile", b =>
                 {
                     b.Property<Guid>("Id")
@@ -549,10 +961,22 @@ namespace Infrastructure.Migrations
                     b.Property<string>("AvatarUrl")
                         .HasColumnType("text");
 
-                    b.Property<string>("City")
+                    b.Property<int?>("ClusterId")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("CurrentLeagueId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("DailyStreak")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("DiamondWinStreak")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("District")
                         .HasColumnType("text");
 
-                    b.Property<int?>("ClusterId")
+                    b.Property<int>("EloRating")
                         .HasColumnType("integer");
 
                     b.Property<string>("FirstName")
@@ -562,15 +986,30 @@ namespace Infrastructure.Migrations
                     b.Property<int?>("Gender")
                         .HasColumnType("integer");
 
+                    b.Property<int?>("Grade")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("LastDayRank")
+                        .HasColumnType("integer");
+
                     b.Property<string>("LastName")
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("SchoolName")
+                    b.Property<DateTime?>("LastTestDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Province")
                         .HasColumnType("text");
+
+                    b.Property<int?>("SchoolId")
+                        .HasColumnType("integer");
 
                     b.Property<string>("TargetFaculty")
                         .HasColumnType("text");
+
+                    b.Property<int?>("TargetMajorId")
+                        .HasColumnType("integer");
 
                     b.Property<int?>("TargetPassingScore")
                         .HasColumnType("integer");
@@ -578,8 +1017,15 @@ namespace Infrastructure.Migrations
                     b.Property<string>("TargetUniversity")
                         .HasColumnType("text");
 
+                    b.Property<string>("UnlockedBadgesJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
+
+                    b.Property<int>("WeeklyXP")
+                        .HasColumnType("integer");
 
                     b.Property<int>("XP")
                         .ValueGeneratedOnAdd()
@@ -587,6 +1033,12 @@ namespace Infrastructure.Migrations
                         .HasDefaultValue(0);
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CurrentLeagueId");
+
+                    b.HasIndex("SchoolId");
+
+                    b.HasIndex("TargetMajorId");
 
                     b.HasIndex("UserId")
                         .IsUnique();
@@ -743,14 +1195,11 @@ namespace Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("Domain.Entities.Education.Topic", "Topic")
+                    b.HasOne("Domain.Entities.Education.Topic", null)
                         .WithMany("Questions")
-                        .HasForeignKey("TopicId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .HasForeignKey("TopicId");
 
                     b.Navigation("Subject");
-
-                    b.Navigation("Topic");
                 });
 
             modelBuilder.Entity("Domain.Entities.Education.Topic", b =>
@@ -789,6 +1238,16 @@ namespace Infrastructure.Migrations
                     b.Navigation("Winner");
                 });
 
+            modelBuilder.Entity("Domain.Entities.Gamification.Notification", b =>
+                {
+                    b.HasOne("Domain.Entities.Users.AppUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Domain.Entities.Monetization.PaymentTransaction", b =>
                 {
                     b.HasOne("Domain.Entities.Users.AppUser", "User")
@@ -819,15 +1278,97 @@ namespace Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Domain.Entities.Reference.ClusterSubject", b =>
+                {
+                    b.HasOne("Domain.Entities.Reference.Cluster", "Cluster")
+                        .WithMany("ClusterSubjects")
+                        .HasForeignKey("ClusterId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Domain.Entities.Education.Subject", "Subject")
+                        .WithMany("ClusterSubjects")
+                        .HasForeignKey("SubjectId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Cluster");
+
+                    b.Navigation("Subject");
+                });
+
+            modelBuilder.Entity("Domain.Entities.Reference.Faculty", b =>
+                {
+                    b.HasOne("Domain.Entities.Reference.University", "University")
+                        .WithMany("Faculties")
+                        .HasForeignKey("UniversityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("University");
+                });
+
+            modelBuilder.Entity("Domain.Entities.Reference.Major", b =>
+                {
+                    b.HasOne("Domain.Entities.Reference.Faculty", "Faculty")
+                        .WithMany("Majors")
+                        .HasForeignKey("FacultyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Faculty");
+                });
+
+            modelBuilder.Entity("Domain.Entities.Testing.RedListQuestion", b =>
+                {
+                    b.HasOne("Domain.Entities.Education.Question", "Question")
+                        .WithMany()
+                        .HasForeignKey("QuestionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Domain.Entities.Users.AppUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Question");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Domain.Entities.Testing.TestSession", b =>
                 {
+                    b.HasOne("Domain.Entities.Education.Subject", "Subject")
+                        .WithMany()
+                        .HasForeignKey("SubjectId");
+
+                    b.HasOne("Domain.Entities.Testing.TestTemplate", "Template")
+                        .WithMany("TestSessions")
+                        .HasForeignKey("TestTemplateId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("Domain.Entities.Users.AppUser", "User")
                         .WithMany("TestSessions")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.Navigation("Subject");
+
+                    b.Navigation("Template");
+
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Domain.Entities.Testing.TestTemplate", b =>
+                {
+                    b.HasOne("Domain.Entities.Reference.Cluster", null)
+                        .WithMany()
+                        .HasForeignKey("ClusterId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Domain.Entities.Testing.UserAnswer", b =>
@@ -856,13 +1397,42 @@ namespace Infrastructure.Migrations
                     b.Navigation("TestSession");
                 });
 
+            modelBuilder.Entity("Domain.Entities.Users.UserLoginActivity", b =>
+                {
+                    b.HasOne("Domain.Entities.Users.AppUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Domain.Entities.Users.UserProfile", b =>
                 {
+                    b.HasOne("Domain.Entities.Gamification.League", "CurrentLeague")
+                        .WithMany("Users")
+                        .HasForeignKey("CurrentLeagueId");
+
+                    b.HasOne("Domain.Entities.Reference.School", "School")
+                        .WithMany("Students")
+                        .HasForeignKey("SchoolId");
+
+                    b.HasOne("Domain.Entities.Reference.Major", "TargetMajor")
+                        .WithMany("TargetedByUsers")
+                        .HasForeignKey("TargetMajorId");
+
                     b.HasOne("Domain.Entities.Users.AppUser", "User")
                         .WithOne("Profile")
                         .HasForeignKey("Domain.Entities.Users.UserProfile", "UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("CurrentLeague");
+
+                    b.Navigation("School");
+
+                    b.Navigation("TargetMajor");
 
                     b.Navigation("User");
                 });
@@ -927,6 +1497,8 @@ namespace Infrastructure.Migrations
 
             modelBuilder.Entity("Domain.Entities.Education.Subject", b =>
                 {
+                    b.Navigation("ClusterSubjects");
+
                     b.Navigation("Questions");
 
                     b.Navigation("Topics");
@@ -937,14 +1509,49 @@ namespace Infrastructure.Migrations
                     b.Navigation("Questions");
                 });
 
+            modelBuilder.Entity("Domain.Entities.Gamification.League", b =>
+                {
+                    b.Navigation("Users");
+                });
+
             modelBuilder.Entity("Domain.Entities.Monetization.SubscriptionPlan", b =>
                 {
                     b.Navigation("Subscriptions");
                 });
 
+            modelBuilder.Entity("Domain.Entities.Reference.Cluster", b =>
+                {
+                    b.Navigation("ClusterSubjects");
+                });
+
+            modelBuilder.Entity("Domain.Entities.Reference.Faculty", b =>
+                {
+                    b.Navigation("Majors");
+                });
+
+            modelBuilder.Entity("Domain.Entities.Reference.Major", b =>
+                {
+                    b.Navigation("TargetedByUsers");
+                });
+
+            modelBuilder.Entity("Domain.Entities.Reference.School", b =>
+                {
+                    b.Navigation("Students");
+                });
+
+            modelBuilder.Entity("Domain.Entities.Reference.University", b =>
+                {
+                    b.Navigation("Faculties");
+                });
+
             modelBuilder.Entity("Domain.Entities.Testing.TestSession", b =>
                 {
                     b.Navigation("Answers");
+                });
+
+            modelBuilder.Entity("Domain.Entities.Testing.TestTemplate", b =>
+                {
+                    b.Navigation("TestSessions");
                 });
 
             modelBuilder.Entity("Domain.Entities.Users.AppUser", b =>
