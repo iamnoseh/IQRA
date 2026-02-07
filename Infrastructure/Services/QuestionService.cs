@@ -1,5 +1,6 @@
 using Application.DTOs.Testing;
 using Application.Interfaces;
+using Domain.Enums;
 using Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -25,7 +26,7 @@ public class QuestionService(ApplicationDbContext context) : IQuestionService
             .ToListAsync();
     }
 
-    public async Task<List<QuestionWithAnswersDto>> GetTestQuestionsAsync(Guid userId, int subjectId, int count)
+    public async Task<List<QuestionWithAnswersDto>> GetTestQuestionsAsync(Guid userId, int subjectId, int count, QuestionType? questionType = null)
     {
         var redListQuestions = await context.RedListQuestions
             .Include(rl => rl.Question)
@@ -36,8 +37,15 @@ public class QuestionService(ApplicationDbContext context) : IQuestionService
                 rl.Question,
                 rl.ConsecutiveCorrectCount
             })
-            .Take(3) 
+            .Take(3)
             .ToListAsync();
+
+        if (questionType.HasValue)
+        {
+            redListQuestions = redListQuestions
+                .Where(x => x.Question.Type == questionType.Value)
+                .ToList();
+        }
 
         var questionsRef = redListQuestions.Select(x => new QuestionWithAnswersDto
         {
@@ -55,8 +63,15 @@ public class QuestionService(ApplicationDbContext context) : IQuestionService
 
         if (remainingCount > 0)
         {
-            var randomQuestions = await context.Questions
-                .Where(q => q.SubjectId == subjectId && !redListIds.Contains(q.Id))
+            var query = context.Questions
+                .Where(q => q.SubjectId == subjectId && !redListIds.Contains(q.Id));
+
+            if (questionType.HasValue)
+            {
+                query = query.Where(q => q.Type == questionType.Value);
+            }
+
+            var randomQuestions = await query
                 .OrderBy(_ => Guid.NewGuid())
                 .Take(remainingCount)
                 .Include(q => q.Subject)

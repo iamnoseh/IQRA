@@ -8,4 +8,5 @@ public class Subject
     
     public ICollection<Topic> Topics { get; set; } = new List<Topic>();
     public ICollection<Question> Questions { get; set; } = new List<Question>();
+    public ICollection<Domain.Entities.Reference.ClusterSubject> ClusterSubjects { get; set; } = new List<Domain.Entities.Reference.ClusterSubject>();
 }

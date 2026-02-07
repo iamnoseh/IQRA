@@ -54,6 +54,8 @@ public partial class UserService(
             {
                 Id = s.Id,
                 Mode = s.Mode,
+                ClusterId = s.ClusterId,
+                ComponentType = s.ComponentType,
                 ClusterNumber = s.ClusterNumber,
                 TotalScore = s.TotalScore,
                 SubjectId = s.SubjectId,

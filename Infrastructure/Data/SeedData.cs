@@ -12,7 +12,7 @@ public static class SeedData
 {
     public static async Task SeedAsync(ApplicationDbContext context, UserManager<AppUser> userManager)
     {
-        if (!await context.ClusterDefinitions.AnyAsync())
+        if (!await context.Clusters.AnyAsync())
             await SeedClusters(context);
 
         if (!await context.Universities.AnyAsync())
@@ -38,7 +38,7 @@ public static class SeedData
 
     private static async Task ResetSequencesAsync(ApplicationDbContext context)
     {
-        var tables = new[] { "Schools", "Universities", "Faculties", "Majors", "ClusterDefinitions", "TestTemplates", "Leagues" };
+        var tables = new[] { "Schools", "Universities", "Faculties", "Majors", "Clusters", "TestTemplates", "Leagues" };
         foreach (var table in tables)
         {
             
@@ -91,39 +91,83 @@ public static class SeedData
     {
         var clusters = new[]
         {
-            new ClusterDefinition
+            new Cluster
             {
                 ClusterNumber = 1,
-                Description = "Математика, Физика, Забони англисӣ",
-                SubjectIdsJson = "[1,2,3]"
+                Name = "Кластер 1: Математика-Физика",
+                Description = "Математика, Физика (Точные науки)",
+                ImageUrl = "/assets/clusters/cluster1.png",
+                IsActive = true
             },
-            new ClusterDefinition
+            new Cluster
             {
                 ClusterNumber = 2,
-                Description = "Математика, Химия, Забони англисӣ",
-                SubjectIdsJson = "[1,4,3]"
+                Name = "Кластер 2: Математика-Химия",
+                Description = "Математика, Химия (Естественные науки)",
+                ImageUrl = "/assets/clusters/cluster2.png",
+                IsActive = true
             },
-            new ClusterDefinition
+            new Cluster
             {
                 ClusterNumber = 3,
-                Description = "Таърих, Адабиёти тоҷик, Забони русӣ",
-                SubjectIdsJson = "[5,6,7]"
+                Name = "Кластер 3: Таърих-Адабиёт",
+                Description = "Таърих, Адабиёти тоҷик, Забони русӣ (Гуманитарные науки)",
+                ImageUrl = "/assets/clusters/cluster3.png",
+                IsActive = true
             },
-            new ClusterDefinition
+            new Cluster
             {
                 ClusterNumber = 4,
-                Description = "Иқтисод, Математика, Забони англисӣ",
-                SubjectIdsJson = "[8,1,3]"
+                Name = "Кластер 4: Иқтисод",
+                Description = "Иқтисод, Математика (Экономические науки)",
+                ImageUrl = "/assets/clusters/cluster4.png",
+                IsActive = true
             },
-            new ClusterDefinition
+            new Cluster
             {
                 ClusterNumber = 5,
-                Description = "Забони тоҷикӣ, Таърих, Ҷуғрофия",
-                SubjectIdsJson = "[9,5,10]"
+                Name = "Кластер 5: Био-Химия",
+                Description = "Химия, Биология (Медицинские науки)",
+                ImageUrl = "/assets/clusters/cluster5.png",
+                IsActive = true
             }
         };
 
-        context.ClusterDefinitions.AddRange(clusters);
+        context.Clusters.AddRange(clusters);
+        await context.SaveChangesAsync();
+
+        var clusterSubjects = new List<ClusterSubject>();
+
+        clusterSubjects.AddRange(new[]
+        {
+            new ClusterSubject { ClusterId = 1, SubjectId = 9, ComponentType = Domain.Enums.ComponentType.PartA, DisplayOrder = 1 },
+            new ClusterSubject { ClusterId = 1, SubjectId = 1, ComponentType = Domain.Enums.ComponentType.PartA, DisplayOrder = 2 },
+            new ClusterSubject { ClusterId = 1, SubjectId = 5, ComponentType = Domain.Enums.ComponentType.PartA, DisplayOrder = 3 },
+            new ClusterSubject { ClusterId = 1, SubjectId = 2, ComponentType = Domain.Enums.ComponentType.PartB, DisplayOrder = 1 },
+
+            new ClusterSubject { ClusterId = 2, SubjectId = 9, ComponentType = Domain.Enums.ComponentType.PartA, DisplayOrder = 1 },
+            new ClusterSubject { ClusterId = 2, SubjectId = 1, ComponentType = Domain.Enums.ComponentType.PartA, DisplayOrder = 2 },
+            new ClusterSubject { ClusterId = 2, SubjectId = 5, ComponentType = Domain.Enums.ComponentType.PartA, DisplayOrder = 3 },
+            new ClusterSubject { ClusterId = 2, SubjectId = 4, ComponentType = Domain.Enums.ComponentType.PartB, DisplayOrder = 1 },
+
+            new ClusterSubject { ClusterId = 3, SubjectId = 9, ComponentType = Domain.Enums.ComponentType.PartA, DisplayOrder = 1 },
+            new ClusterSubject { ClusterId = 3, SubjectId = 5, ComponentType = Domain.Enums.ComponentType.PartA, DisplayOrder = 2 },
+            new ClusterSubject { ClusterId = 3, SubjectId = 7, ComponentType = Domain.Enums.ComponentType.PartA, DisplayOrder = 3 },
+            new ClusterSubject { ClusterId = 3, SubjectId = 6, ComponentType = Domain.Enums.ComponentType.PartB, DisplayOrder = 1 },
+
+            new ClusterSubject { ClusterId = 4, SubjectId = 9, ComponentType = Domain.Enums.ComponentType.PartA, DisplayOrder = 1 },
+            new ClusterSubject { ClusterId = 4, SubjectId = 1, ComponentType = Domain.Enums.ComponentType.PartA, DisplayOrder = 2 },
+            new ClusterSubject { ClusterId = 4, SubjectId = 5, ComponentType = Domain.Enums.ComponentType.PartA, DisplayOrder = 3 },
+            new ClusterSubject { ClusterId = 4, SubjectId = 8, ComponentType = Domain.Enums.ComponentType.PartB, DisplayOrder = 1 },
+
+            new ClusterSubject { ClusterId = 5, SubjectId = 9, ComponentType = Domain.Enums.ComponentType.PartA, DisplayOrder = 1 },
+            new ClusterSubject { ClusterId = 5, SubjectId = 1, ComponentType = Domain.Enums.ComponentType.PartA, DisplayOrder = 2 },
+            new ClusterSubject { ClusterId = 5, SubjectId = 5, ComponentType = Domain.Enums.ComponentType.PartA, DisplayOrder = 3 },
+            new ClusterSubject { ClusterId = 5, SubjectId = 4, ComponentType = Domain.Enums.ComponentType.PartB, DisplayOrder = 1 },
+            new ClusterSubject { ClusterId = 5, SubjectId = 11, ComponentType = Domain.Enums.ComponentType.PartB, DisplayOrder = 2 }
+        });
+
+        context.ClusterSubjects.AddRange(clusterSubjects);
         await context.SaveChangesAsync();
     }
 
@@ -272,48 +316,120 @@ public static class SeedData
         {
             new TestTemplate
             {
-                ClusterNumber = 1,
-                Name = "ДМТ Кластер 1 (Математика-Физика-Англисӣ)",
-                SubjectDistributionJson = "{\"1\": 15, \"2\": 10, \"3\": 10}",
-                TotalQuestions = 35,
-                DurationMinutes = 180
+                ClusterId = 1,
+                ComponentType = Domain.Enums.ComponentType.PartA,
+                Name = "Кластер 1 - Қисми А (Умумӣ)",
+                SingleChoiceCount = 10,
+                ClosedAnswerCount = 5,
+                MatchingCount = 5,
+                DurationMinutes = 180,
+                IsActive = true
             },
             new TestTemplate
             {
-                ClusterNumber = 2,
-                Name = "ДМТ Кластер 2 (Математика-Химия-Англисӣ)",
-                SubjectDistributionJson = "{\"1\": 15, \"4\": 10, \"3\": 10}",
-                TotalQuestions = 35,
-                DurationMinutes = 180
+                ClusterId = 1,
+                ComponentType = Domain.Enums.ComponentType.PartB,
+                Name = "Кластер 1 - Қисми Б (Тахассусӣ)",
+                SingleChoiceCount = 10,
+                ClosedAnswerCount = 5,
+                MatchingCount = 5,
+                DurationMinutes = 180,
+                IsActive = true
             },
             new TestTemplate
             {
-                ClusterNumber = 3,
-                Name = "ДМТ Кластер 3 (Таърих-Адабиёт-Русӣ)",
-                SubjectDistributionJson = "{\"5\": 15, \"6\": 10, \"7\": 10}",
-                TotalQuestions = 35,
-                DurationMinutes = 180
+                ClusterId = 2,
+                ComponentType = Domain.Enums.ComponentType.PartA,
+                Name = "Кластер 2 - Қисми А (Умумӣ)",
+                SingleChoiceCount = 10,
+                ClosedAnswerCount = 5,
+                MatchingCount = 5,
+                DurationMinutes = 180,
+                IsActive = true
             },
             new TestTemplate
             {
-                ClusterNumber = 4,
-                Name = "ДМТ Кластер 4 (Иқтисод-Математика-Англисӣ)",
-                SubjectDistributionJson = "{\"8\": 15, \"1\": 10, \"3\": 10}",
-                TotalQuestions = 35,
-                DurationMinutes = 180
+                ClusterId = 2,
+                ComponentType = Domain.Enums.ComponentType.PartB,
+                Name = "Кластер 2 - Қисми Б (Тахассусӣ)",
+                SingleChoiceCount = 10,
+                ClosedAnswerCount = 5,
+                MatchingCount = 5,
+                DurationMinutes = 180,
+                IsActive = true
             },
             new TestTemplate
             {
-                ClusterNumber = 5,
-                Name = "ДМТ Кластер 5 (Тоҷикӣ-Таърих-Ҷуғрофия)",
-                SubjectDistributionJson = "{\"9\": 15, \"5\": 10, \"10\": 10}",
-                TotalQuestions = 35,
-                DurationMinutes = 180
+                ClusterId = 3,
+                ComponentType = Domain.Enums.ComponentType.PartA,
+                Name = "Кластер 3 - Қисми А (Умумӣ)",
+                SingleChoiceCount = 10,
+                ClosedAnswerCount = 5,
+                MatchingCount = 5,
+                DurationMinutes = 180,
+                IsActive = true
+            },
+            new TestTemplate
+            {
+                ClusterId = 3,
+                ComponentType = Domain.Enums.ComponentType.PartB,
+                Name = "Кластер 3 - Қисми Б (Тахассусӣ)",
+                SingleChoiceCount = 10,
+                ClosedAnswerCount = 5,
+                MatchingCount = 5,
+                DurationMinutes = 180,
+                IsActive = true
+            },
+            new TestTemplate
+            {
+                ClusterId = 4,
+                ComponentType = Domain.Enums.ComponentType.PartA,
+                Name = "Кластер 4 - Қисми А (Умумӣ)",
+                SingleChoiceCount = 10,
+                ClosedAnswerCount = 5,
+                MatchingCount = 5,
+                DurationMinutes = 180,
+                IsActive = true
+            },
+            new TestTemplate
+            {
+                ClusterId = 4,
+                ComponentType = Domain.Enums.ComponentType.PartB,
+                Name = "Кластер 4 - Қисми Б (Тахассусӣ)",
+                SingleChoiceCount = 10,
+                ClosedAnswerCount = 5,
+                MatchingCount = 5,
+                DurationMinutes = 180,
+                IsActive = true
+            },
+            new TestTemplate
+            {
+                ClusterId = 5,
+                ComponentType = Domain.Enums.ComponentType.PartA,
+                Name = "Кластер 5 - Қисми А (Умумӣ)",
+                SingleChoiceCount = 10,
+                ClosedAnswerCount = 5,
+                MatchingCount = 5,
+                DurationMinutes = 180,
+                IsActive = true
+            },
+            new TestTemplate
+            {
+                ClusterId = 5,
+                ComponentType = Domain.Enums.ComponentType.PartB,
+                Name = "Кластер 5 - Қисми Б (Тахассусӣ)",
+                SingleChoiceCount = 10,
+                ClosedAnswerCount = 5,
+                MatchingCount = 5,
+                DurationMinutes = 180,
+                IsActive = true
             }
         };
 
         context.TestTemplates.AddRange(templates);
         await context.SaveChangesAsync();
+        
+        Console.WriteLine("[Seed] ✓ 10 TestTemplates (Қисми А/Б барои ҳар кластер)");
     }
 
     private static async Task SeedLeagues(ApplicationDbContext context)

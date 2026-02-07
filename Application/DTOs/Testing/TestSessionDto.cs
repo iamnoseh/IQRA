@@ -6,6 +6,8 @@ public class TestSessionDto
 {
     public Guid Id { get; set; }
     public TestMode Mode { get; set; }
+    public int? ClusterId { get; set; }
+    public Domain.Enums.ComponentType? ComponentType { get; set; }
     public int ClusterNumber { get; set; }
     public int TotalScore { get; set; }
     public int? SubjectId { get; set; }

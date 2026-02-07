@@ -34,20 +34,31 @@ public class TestService(
         }
         else
         {
+            if (!request.ClusterId.HasValue)
+                return new Response<Guid>(HttpStatusCode.BadRequest, "Кластер интихоб нашудааст");
+
             var template = await context.TestTemplates
-                .FirstOrDefaultAsync(t => t.ClusterNumber == request.ClusterNumber);
+                .FirstOrDefaultAsync(t => t.ClusterId == request.ClusterId && t.ComponentType == request.ComponentType);
             
             if (template == null)
-                return new Response<Guid>(HttpStatusCode.BadRequest, "Template барои ин кластер ёфт нашуд");
+                return new Response<Guid>(HttpStatusCode.BadRequest, "Template барои ин кластер ё қисм ёфт нашуд");
 
             templateId = template.Id;
-            var distribution = JsonSerializer.Deserialize<Dictionary<string, int>>(template.SubjectDistributionJson);
+
+            var clusterSubjects = await context.ClusterSubjects
+                .Where(cs => cs.ClusterId == request.ClusterId && cs.ComponentType == request.ComponentType)
+                .OrderBy(cs => cs.DisplayOrder)
+                .ToListAsync();
             
-            foreach (var (subjectIdStr, count) in distribution!)
+            foreach (var cs in clusterSubjects)
             {
-                var subjectId = int.Parse(subjectIdStr);
-                var questions = await questionService.GetTestQuestionsAsync(userId, subjectId, count);
-                questionIds.AddRange(questions.Select(q => q.Id));
+                var singleChoice = await questionService.GetTestQuestionsAsync(userId, cs.SubjectId, template.SingleChoiceCount, QuestionType.SingleChoice);
+                var closedAnswer = await questionService.GetTestQuestionsAsync(userId, cs.SubjectId, template.ClosedAnswerCount, QuestionType.ClosedAnswer);
+                var matching = await questionService.GetTestQuestionsAsync(userId, cs.SubjectId, template.MatchingCount, QuestionType.Matching);
+                
+                questionIds.AddRange(singleChoice.Select(q => q.Id));
+                questionIds.AddRange(closedAnswer.Select(q => q.Id));
+                questionIds.AddRange(matching.Select(q => q.Id));
             }
         }
 
@@ -59,7 +70,8 @@ public class TestService(
             Id = Guid.NewGuid(),
             UserId = userId,
             Mode = request.Mode,
-            ClusterNumber = request.ClusterNumber,
+            ClusterId = request.ClusterId,
+            ComponentType = request.ComponentType,
             SubjectId = request.SubjectId,
             TestTemplateId = templateId,
             QuestionIdsJson = JsonSerializer.Serialize(questionIds),

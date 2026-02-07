@@ -33,7 +33,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<University> Universities { get; set; }
     public DbSet<Faculty> Faculties { get; set; }
     public DbSet<Major> Majors { get; set; }
-    public DbSet<ClusterDefinition> ClusterDefinitions { get; set; }
+    public DbSet<Cluster> Clusters { get; set; }
+    public DbSet<ClusterSubject> ClusterSubjects { get; set; }
     public DbSet<RedListQuestion> RedListQuestions { get; set; }
     public DbSet<UserLoginActivity> UserLoginActivities { get; set; }
     public DbSet<Notification> Notifications { get; set; }
@@ -166,8 +167,14 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         {
             entity.HasKey(t => t.Id);
             entity.Property(t => t.Name).IsRequired().HasMaxLength(100);
-            entity.Property(t => t.SubjectDistributionJson).IsRequired();
-            entity.HasIndex(t => t.ClusterNumber);
+            
+            entity.HasOne<Cluster>()
+                .WithMany()
+                .HasForeignKey(t => t.ClusterId)
+                .OnDelete(DeleteBehavior.Restrict);
+            
+            entity.HasIndex(t => new { t.ClusterId, t.ComponentType }).IsUnique();
+            entity.Property(t => t.IsActive).HasDefaultValue(true);
         });
 
         modelBuilder.Entity<UserAnswer>(entity =>
@@ -365,12 +372,35 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.Property(m => m.MinScore2025).IsRequired();
         });
 
-        modelBuilder.Entity<ClusterDefinition>(entity =>
+
+        modelBuilder.Entity<Cluster>(entity =>
         {
-            entity.HasKey(cd => cd.Id);
-            entity.Property(cd => cd.ClusterNumber).IsRequired();
-            entity.Property(cd => cd.Description).HasMaxLength(500);
-            entity.Property(cd => cd.SubjectIdsJson).IsRequired();
+            entity.HasKey(c => c.Id);
+            entity.Property(c => c.Name).IsRequired().HasMaxLength(200);
+            entity.Property(c => c.ClusterNumber).IsRequired();
+            entity.Property(c => c.Description).HasMaxLength(500);
+            entity.Property(c => c.IsActive).HasDefaultValue(true);
+            entity.HasIndex(c => c.ClusterNumber).IsUnique();
+        });
+
+        modelBuilder.Entity<ClusterSubject>(entity =>
+        {
+            entity.HasKey(cs => cs.Id);
+            
+            entity.HasOne(cs => cs.Cluster)
+                .WithMany(c => c.ClusterSubjects)
+                .HasForeignKey(cs => cs.ClusterId)
+                .OnDelete(DeleteBehavior.Cascade);
+            
+            entity.HasOne(cs => cs.Subject)
+                .WithMany(s => s.ClusterSubjects)
+                .HasForeignKey(cs => cs.SubjectId)
+                .OnDelete(DeleteBehavior.Restrict);
+            
+            entity.HasIndex(cs => new { cs.ClusterId, cs.SubjectId, cs.ComponentType })
+                .IsUnique();
+            
+            entity.Property(cs => cs.DisplayOrder).HasDefaultValue(0);
         });
     }
 }

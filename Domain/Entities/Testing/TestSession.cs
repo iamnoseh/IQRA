@@ -16,6 +16,11 @@ public class TestSession
     public int? SubjectId { get; set; }
     public string QuestionIdsJson { get; set; } = string.Empty;
     public bool IsCompleted { get; set; }
+    
+    public int? ClusterId { get; set; }
+    public ComponentType? ComponentType { get; set; }
+    
+    [Obsolete("Use ClusterId instead")]
     public int ClusterNumber { get; set; }
     public int? TestTemplateId { get; set; }
     
