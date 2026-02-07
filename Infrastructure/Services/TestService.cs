@@ -37,6 +37,11 @@ public class TestService(
             if (!request.ClusterId.HasValue)
                 return new Response<Guid>(HttpStatusCode.BadRequest, "Кластер интихоб нашудааст");
 
+            // Проверка что кластер активен
+            var cluster = await context.Clusters.FindAsync(request.ClusterId.Value);
+            if (cluster == null || !cluster.IsActive)
+                return new Response<Guid>(HttpStatusCode.BadRequest, "Кластер ёфт нашуд ё фаъол нест");
+
             var template = await context.TestTemplates
                 .FirstOrDefaultAsync(t => t.ClusterId == request.ClusterId && t.ComponentType == request.ComponentType);
             

@@ -16,6 +16,7 @@ public class ClusterService(ApplicationDbContext context, IFileStorageService fi
         var clusters = await context.Clusters
             .Include(c => c.ClusterSubjects)
                 .ThenInclude(cs => cs.Subject)
+            .Where(c => c.IsActive)
             .OrderBy(c => c.ClusterNumber)
             .ToListAsync();
 
@@ -28,7 +29,7 @@ public class ClusterService(ApplicationDbContext context, IFileStorageService fi
         var cluster = await context.Clusters
             .Include(c => c.ClusterSubjects)
                 .ThenInclude(cs => cs.Subject)
-            .FirstOrDefaultAsync(c => c.Id == id);
+            .FirstOrDefaultAsync(c => c.Id == id && c.IsActive);
 
         if (cluster == null)
             return new Response<ClusterDto>(HttpStatusCode.NotFound, "Кластер ёфт нашуд");

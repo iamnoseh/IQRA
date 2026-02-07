@@ -1,99 +1,107 @@
-using Application.DTOs.Admin;
-using Application.Interfaces;
-using Microsoft.AspNetCore.Authorization;
+using Application.DTOs.Reference;
+using Infrastructure.Data;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace WebApp.Controllers;
 
 [ApiController]
-[Route("api/admin/[controller]")]
-[Authorize(Roles = "Admin")]
-public class ClustersController(IClusterService clusterService) : ControllerBase
+[Route("api/[controller]")]
+public class ClustersController : ControllerBase
 {
+    private readonly ApplicationDbContext _context;
+
+    public ClustersController(ApplicationDbContext context)
+    {
+        _context = context;
+    }
+
     [HttpGet]
     public async Task<IActionResult> GetAllClusters()
     {
-        var response = await clusterService.GetAllClustersAsync();
-        return response.Success 
-            ? Ok(response.Data) 
-            : StatusCode(response.StatusCode, response.Message);
+        var clusters = await _context.Clusters
+            .Include(c => c.ClusterSubjects)
+                .ThenInclude(cs => cs.Subject)
+            .Where(c => c.IsActive)
+            .OrderBy(c => c.ClusterNumber)
+            .ToListAsync();
+
+        var clusterDtos = clusters.Select(c => new ClusterDto
+        {
+            Id = c.Id,
+            ClusterNumber = c.ClusterNumber,
+            Name = c.Name,
+            Description = c.Description,
+            ImageUrl = c.ImageUrl,
+            PartASubjects = c.ClusterSubjects
+                .Where(cs => cs.ComponentType == Domain.Enums.ComponentType.PartA)
+                .OrderBy(cs => cs.DisplayOrder)
+                .Select(cs => new ClusterSubjectDto
+                {
+                    SubjectId = cs.SubjectId,
+                    SubjectName = cs.Subject?.Name ?? string.Empty,
+                    SubjectIconUrl = cs.Subject?.IconUrl ?? string.Empty,
+                    DisplayOrder = cs.DisplayOrder
+                })
+                .ToList(),
+            PartBSubjects = c.ClusterSubjects
+                .Where(cs => cs.ComponentType == Domain.Enums.ComponentType.PartB)
+                .OrderBy(cs => cs.DisplayOrder)
+                .Select(cs => new ClusterSubjectDto
+                {
+                    SubjectId = cs.SubjectId,
+                    SubjectName = cs.Subject?.Name ?? string.Empty,
+                    SubjectIconUrl = cs.Subject?.IconUrl ?? string.Empty,
+                    DisplayOrder = cs.DisplayOrder
+                })
+                .ToList()
+        }).ToList();
+
+        return Ok(clusterDtos);
     }
 
     [HttpGet("{id}")]
     public async Task<IActionResult> GetClusterById(int id)
     {
-        var response = await clusterService.GetClusterByIdAsync(id);
-        return response.Success 
-            ? Ok(response.Data) 
-            : StatusCode(response.StatusCode, response.Message);
-    }
+        var cluster = await _context.Clusters
+            .Include(c => c.ClusterSubjects)
+                .ThenInclude(cs => cs.Subject)
+            .FirstOrDefaultAsync(c => c.Id == id && c.IsActive);
 
-    [HttpPost]
-    public async Task<IActionResult> CreateCluster([FromForm] CreateClusterRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ModelState);
+        if (cluster == null)
+            return NotFound("Кластер ёфт нашуд");
 
-        var response = await clusterService.CreateClusterAsync(request);
-        return response.Success 
-            ? Ok(response.Data) 
-            : StatusCode(response.StatusCode, response.Message);
-    }
+        var clusterDto = new ClusterDto
+        {
+            Id = cluster.Id,
+            ClusterNumber = cluster.ClusterNumber,
+            Name = cluster.Name,
+            Description = cluster.Description,
+            ImageUrl = cluster.ImageUrl,
+            PartASubjects = cluster.ClusterSubjects
+                .Where(cs => cs.ComponentType == Domain.Enums.ComponentType.PartA)
+                .OrderBy(cs => cs.DisplayOrder)
+                .Select(cs => new ClusterSubjectDto
+                {
+                    SubjectId = cs.SubjectId,
+                    SubjectName = cs.Subject?.Name ?? string.Empty,
+                    SubjectIconUrl = cs.Subject?.IconUrl ?? string.Empty,
+                    DisplayOrder = cs.DisplayOrder
+                })
+                .ToList(),
+            PartBSubjects = cluster.ClusterSubjects
+                .Where(cs => cs.ComponentType == Domain.Enums.ComponentType.PartB)
+                .OrderBy(cs => cs.DisplayOrder)
+                .Select(cs => new ClusterSubjectDto
+                {
+                    SubjectId = cs.SubjectId,
+                    SubjectName = cs.Subject?.Name ?? string.Empty,
+                    SubjectIconUrl = cs.Subject?.IconUrl ?? string.Empty,
+                    DisplayOrder = cs.DisplayOrder
+                })
+                .ToList()
+        };
 
-    [HttpPut("{id}")]
-    public async Task<IActionResult> UpdateCluster(int id, [FromForm] UpdateClusterRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ModelState);
-
-        var response = await clusterService.UpdateClusterAsync(id, request);
-        return response.Success 
-            ? Ok(response.Data) 
-            : StatusCode(response.StatusCode, response.Message);
-    }
-
-    [HttpDelete("{id}")]
-    public async Task<IActionResult> DeleteCluster(int id)
-    {
-        var response = await clusterService.DeleteClusterAsync(id);
-        return response.Success 
-            ? Ok(new { message = response.Message }) 
-            : StatusCode(response.StatusCode, response.Message);
-    }
-
-    [HttpPost("{id}/subjects")]
-    public async Task<IActionResult> AddSubjectToCluster(int id, [FromBody] AddSubjectToClusterRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ModelState);
-
-        var response = await clusterService.AddSubjectToClusterAsync(id, request);
-        return response.Success 
-            ? Ok(new { message = response.Message }) 
-            : StatusCode(response.StatusCode, response.Message);
-    }
-
-    [HttpDelete("{id}/subjects/{subjectId}/{componentType}")]
-    public async Task<IActionResult> RemoveSubjectFromCluster(
-        int id, 
-        int subjectId, 
-        Domain.Enums.ComponentType componentType)
-    {
-        var response = await clusterService.RemoveSubjectFromClusterAsync(id, subjectId, componentType);
-        return response.Success 
-            ? Ok(new { message = response.Message }) 
-            : StatusCode(response.StatusCode, response.Message);
-    }
-
-    [HttpPut("{id}/subjects/reorder")]
-    public async Task<IActionResult> ReorderSubjects(int id, [FromBody] ReorderSubjectsRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ModelState);
-
-        var response = await clusterService.ReorderSubjectsAsync(id, request);
-        return response.Success 
-            ? Ok(new { message = response.Message }) 
-            : StatusCode(response.StatusCode, response.Message);
+        return Ok(clusterDto);
     }
 }
